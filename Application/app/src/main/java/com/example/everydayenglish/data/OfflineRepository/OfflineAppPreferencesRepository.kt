@@ -14,8 +14,8 @@ class OfflineAppPreferencesRepository(
     private val dataStore: DataStore<Preferences>
 ) : AppPreferencesRepository {
 
-    override fun getUserId(): String? =
-        prefs.getString("user_id", null)
+    override fun getUserId(): String =
+        prefs.getString("user_id", "") ?: ""
 
     override fun saveUserId(userId: String) =
         prefs.edit().putString("user_id", userId).apply()

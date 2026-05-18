@@ -30,17 +30,20 @@ import com.example.everydayenglish.viewmodel.SplashViewModel
 @Composable
 fun SplashScreen(
     viewModel: SplashViewModel,
+    onNavigation: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val progress by viewModel.progress.collectAsStateWithLifecycle()
     val statusText by viewModel.statusText.collectAsStateWithLifecycle()
     val isReady by viewModel.isReady.collectAsStateWithLifecycle()
-    val context = LocalContext.current
+
+    LaunchedEffect(Unit) {
+        viewModel.initialize()
+    }
 
     LaunchedEffect(isReady) {
         if (isReady) {
-            context.startActivity(Intent(context, MainActivity::class.java))
-            (context as? Activity)?.finish()
+            onNavigation()
         }
     }
 
@@ -55,7 +58,7 @@ fun SplashScreen(
             painter = painterResource(R.drawable.ic_launcher),
             contentDescription = null,
             modifier = Modifier
-                .size(120.dp)
+                .size(220.dp)
                 .padding(bottom = 32.dp)
         )
 

@@ -124,14 +124,12 @@ fun ExerciseScreen(
 
             when {
 
-                // ── Loading ────────────────────────────────────────────────
                 uiState.isLoading -> {
                     CircularProgressIndicator(
                         modifier = Modifier.align(Alignment.Center)
                     )
                 }
 
-                // ── Error ──────────────────────────────────────────────────
                 uiState.errorMessage != null -> {
                     Column(
                         modifier = Modifier
@@ -151,7 +149,6 @@ fun ExerciseScreen(
                     }
                 }
 
-                // ── Session complete ───────────────────────────────────────
                 uiState.isSessionDone -> {
                     SessionCompleteContent(
                         totalAnswered = uiState.totalAnswered,
@@ -162,7 +159,6 @@ fun ExerciseScreen(
                     )
                 }
 
-                // ── Active exercise ────────────────────────────────────────
                 exercise != null -> {
                     ExerciseContent(
                         exercise     = exercise,
@@ -175,7 +171,6 @@ fun ExerciseScreen(
         }
     }
 
-    // ── Feedback dialog (shown after submit) ───────────────────────────────
     uiState.feedbackState?.let { feedback ->
         FeedbackDialog(
             feedback    = feedback,
@@ -184,9 +179,6 @@ fun ExerciseScreen(
     }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Sub-composable
-// ─────────────────────────────────────────────────────────────────────────────
 
 @Composable
 private fun ExerciseContent(
@@ -321,10 +313,6 @@ private fun FeedbackDialog(
     )
 }
 
-/**
- * Full-screen celebration shown once the user finishes all exercises in
- * today's session.
- */
 @Composable
 private fun SessionCompleteContent(
     totalAnswered: Int,
@@ -431,26 +419,23 @@ private fun SessionCompleteContent(
     }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Preview
-// ─────────────────────────────────────────────────────────────────────────────
 
 @Preview(showBackground = true)
 @Composable
 fun ExerciseScreenPreview() {
     val mockExercise = ExerciseWithReferenceAnswers(
         exercise = Exercise(
-            id = 1, promptId = 1,
+            promptId = 1,
             prompt = "Describe what you did yesterday."
         ),
         answers = listOf(
             ReferenceAnswer(
-                answerId = 1, exerciseId = 1, referId = 1,
+                promptId = 1, referId = 1,
                 reference = "I went shopping with my friends.",
                 tense = "Past Simple"
             ),
             ReferenceAnswer(
-                answerId = 2, exerciseId = 1, referId = 2,
+                promptId = 1, referId = 2,
                 reference = "Yesterday I watched a movie at home.",
                 tense = "Past Simple"
             )

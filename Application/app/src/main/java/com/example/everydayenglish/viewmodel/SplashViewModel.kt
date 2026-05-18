@@ -79,7 +79,10 @@ class SplashViewModel(
 
     private fun getOrCreateUserId(): String {
         val existingId = appPreferencesRepository.getUserId()
-        if (existingId != null) return existingId
+
+        if (existingId.isNotBlank()) {
+            return existingId
+        }
 
         val newId = UUID.randomUUID().toString()
         appPreferencesRepository.saveUserId(newId)
@@ -90,17 +93,4 @@ class SplashViewModel(
         val weight: Int,
         val action: suspend () -> Unit
     )
-}
-class SplashViewModelFactory(
-    private val exerciseRepository: ExerciseRepository,
-    private val userProfileRepository: UserProfileRepository,
-    private val appPreferencesRepository: AppPreferencesRepository
-) : ViewModelProvider.Factory {
-    override fun <T : ViewModel> create(modelClass: Class<T>): T {
-        if (modelClass.isAssignableFrom(SplashViewModel::class.java)) {
-            @Suppress("UNCHECKED_CAST")
-            return SplashViewModel(exerciseRepository, userProfileRepository, appPreferencesRepository) as T
-        }
-        throw IllegalArgumentException("Unknown ViewModel class")
-    }
 }

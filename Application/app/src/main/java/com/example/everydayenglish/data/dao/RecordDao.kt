@@ -21,8 +21,8 @@ interface ExerciseRecordDao {
     @Delete
     suspend fun deleteExerciseRecord(exerciseRecord: ExerciseRecord)
 
-    @Query("SELECT * FROM exercise_records WHERE promptId = :exerciseId")
-    suspend fun getRecordsByExerciseId(exerciseId: Int): List<ExerciseRecord>
+    @Query("SELECT * FROM exercise_records WHERE promptId = :promptId")
+    suspend fun getRecordsByPromptId(promptId: Int): List<ExerciseRecord>
 
     @Query("SELECT * FROM exercise_records ORDER BY timestamp DESC LIMIT :limit")
     suspend fun getRecentRecords(limit: Int): List<ExerciseRecord>

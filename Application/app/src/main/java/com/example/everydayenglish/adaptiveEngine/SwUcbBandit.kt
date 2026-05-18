@@ -6,14 +6,14 @@ import kotlin.math.ln
 import kotlin.math.sqrt
 
 class SwUcbBandit(
-    private val windowSize: Int = 30,
-    private val explorationC: Double = 2.0
+    val windowSize: Int = 30,
+    val explorationC: Double = 2.0
 ) {
     private val arms: Map<TenseCategory, ArmState> =
         TenseCategory.entries.associateWith { ArmState(category = it) }
             .toMutableMap()
 
-    private var totalPulls: Int = 0
+    var totalPulls: Int = 0
 
     fun selectArm(): TenseCategory {
         val unexplored = arms.values.filter { it.count() == 0 }

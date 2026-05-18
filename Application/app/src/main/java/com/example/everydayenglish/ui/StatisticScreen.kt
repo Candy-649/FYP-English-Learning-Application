@@ -16,6 +16,7 @@ import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -49,7 +50,8 @@ import com.patrykandpatrick.vico.core.cartesian.data.lineSeries
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun StatisticScreen(
-    uiState: StatisticUiState
+    uiState: StatisticUiState,
+    onBackClick: () -> Unit
 ){
     Scaffold(
         topBar = {
@@ -63,12 +65,16 @@ fun StatisticScreen(
                     )
                 },
                 navigationIcon = {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = "Back",
-                        modifier = Modifier
-                            .padding(dimensionResource(R.dimen.padding_small))
-                    )
+                    IconButton(
+                        onClick = onBackClick
+                    ) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Back",
+                            modifier = Modifier
+                                .padding(dimensionResource(R.dimen.padding_small))
+                        )
+                    }
                 },
                 actions = {
                     Icon(
@@ -283,6 +289,9 @@ fun StatisticScreenPreview(){
         )
     )
     EverydayEnglishTheme() {
-        StatisticScreen(sampleStatistic)
+        StatisticScreen(
+            sampleStatistic,
+            onBackClick = {}
+        )
     }
 }

@@ -3,6 +3,7 @@ package com.example.everydayenglish.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.everydayenglish.adaptiveEngine.TenseCategory
+import com.example.everydayenglish.data.Repository.AppPreferencesRepository
 import com.example.everydayenglish.data.Repository.BanditRepository
 import com.example.everydayenglish.data.Repository.ExerciseRepository
 import com.example.everydayenglish.data.Repository.RecordRepository
@@ -18,14 +19,35 @@ import kotlinx.coroutines.launch
 import kotlin.random.Random
 
 // Default user ID for a single-user app
-private const val DEFAULT_USER_ID = "1"
+
+data class ArmDebugInfo(
+    val category: TenseCategory,
+    val mu: Double,
+    val n: Int,
+    val ucbBonus: Double,
+    val ucbScore: Double,
+    val isSelected: Boolean
+)
+
+data class SelectionStepLog(
+    val stepIndex: Int,
+    val totalPulls: Int,
+    val selectedCategory: TenseCategory,
+    val wasUnexplored: Boolean,
+    val armDetails: List<ArmDebugInfo>
+)
 
 class ExerciseViewModel(
     private val exerciseRepository: ExerciseRepository,
     private val banditRepository: BanditRepository,
     private val recordRepository: RecordRepository,
-    private val userProfileRepository: UserProfileRepository
+    private val userProfileRepository: UserProfileRepository,
+    private val appPreferencesRepository: AppPreferencesRepository
 ) : ViewModel() {
+
+    private val userId: String
+        get() = appPreferencesRepository.getUserId()
+
 
     private val _uiState = MutableStateFlow(ExerciseUiState())
     val uiState = _uiState.asStateFlow()
@@ -34,25 +56,15 @@ class ExerciseViewModel(
         loadSession()
     }
 
-    // ─────────────────────────────────────────────────────────────
-    // Session bootstrap
-    // ─────────────────────────────────────────────────────────────
 
-    /**
-     * Entry point. Loads the user profile first, then tries to restore
-     * an in-progress session. If none exists (or the previous daily goal
-     * was fully completed), fetches a fresh batch.
-     */
     private fun loadSession() {
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, errorMessage = null) }
 
             try {
-                val profile = userProfileRepository.getUserProfile(DEFAULT_USER_ID)
-                    ?: UserProfile(userId = DEFAULT_USER_ID)
+                val profile = userProfileRepository.getUserProfile(userId = userId)
+                    ?: UserProfile(userId = userId)
 
-                // A "session" lives in the ViewModel's queue.
-                // On a fresh start the queue is empty, so we always fetch.
                 fetchExerciseBatch(profile)
 
             } catch (e: Exception) {
@@ -63,22 +75,28 @@ class ExerciseViewModel(
         }
     }
 
-    /**
-     * Fetches [UserProfile.dailyGoal] exercises via the bandit, shuffles
-     * them, and places them in the queue. Then advances to the first one.
-     */
     private suspend fun fetchExerciseBatch(profile: UserProfile) {
         val dailyGoal = profile.dailyGoal.coerceAtLeast(1)
         val batch = mutableListOf<ExerciseWithReferenceAnswers>()
 
         repeat(dailyGoal) {
+            val armStatesBefore = banditRepository.getStats()
+            val totalPulls = banditRepository.getTotalPulls()
+            val windowSize = banditRepository.getWindowSize()
+            val explorationC = banditRepository.getExplorationC()
             val category = banditRepository.selectNextCategory()
+            val anyUnexplored = armStatesBefore.values.any{ (_, n) -> n == 0}
+            val armDetails = armStatesBefore.map { (cat, stats) ->
+                val (mu, n) = stats
+                val ucbBonus = if (n == 0) -1.0 else
+
+            }
             val exercise = exerciseRepository
                 .getExercisesByCategory(category)
                 .randomOrNull()
             if (exercise != null) {
                 val withAnswers =
-                    exerciseRepository.getExercisesWithReferenceAnswersById(exercise.id)
+                    exerciseRepository.getExercisesWithReferenceAnswersById(exercise.promptId)
                 batch.add(withAnswers)
             }
         }
@@ -108,18 +126,12 @@ class ExerciseViewModel(
         }
     }
 
-    // ─────────────────────────────────────────────────────────────
-    // User interactions
-    // ─────────────────────────────────────────────────────────────
 
     fun updateUserAnswer(answer: String) {
         _uiState.update { it.copy(userAnswer = answer) }
     }
 
-    /**
-     * Evaluates the current answer, persists an [ExerciseRecord], updates
-     * the bandit, and surfaces feedback to the UI.
-     */
+
     fun submitAnswer() {
         viewModelScope.launch {
             val state       = _uiState.value
@@ -127,26 +139,22 @@ class ExerciseViewModel(
             val userAnswer  = state.userAnswer.trim()
             if (userAnswer.isBlank()) return@launch
 
-            // ── Evaluation (replace with real NLP when ready) ──────────
             val isCorrect     = Random.nextBoolean()
             val matchedAnswer = exercise.answers.randomOrNull()
-            // ────────────────────────────────────────────────────────────
 
-            // Persist record
             val record = ExerciseRecord(
-                promptId = exercise.exercise.id,
-                userId = DEFAULT_USER_ID.toIntOrNull() ?: 1,
+                promptId = exercise.exercise.promptId,
+                userId = userId.toIntOrNull() ?: 1,
                 referId = matchedAnswer?.referId ?: -1,
                 userAnswer = userAnswer,
                 isCorrect = isCorrect,
-                grammar = null,      // fill once NLP is wired
+                grammar = null,
                 semanticScore = null,
                 feedback = null,
                 timestamp = System.currentTimeMillis()
             )
             recordRepository.insertExerciseRecord(record)
 
-            // Update bandit
             val category = matchedAnswer
                 ?.tense
                 ?.let { TenseCategory.fromTenseString(it) }
@@ -159,9 +167,8 @@ class ExerciseViewModel(
                 )
             }
 
-            // Update correct-sentence count in profile if correct
             if (isCorrect) {
-                userProfileRepository.incrementSentencesCompleted(DEFAULT_USER_ID)
+                userProfileRepository.incrementSentencesCompleted(userId)
             }
 
             _uiState.update {
@@ -180,23 +187,16 @@ class ExerciseViewModel(
         }
     }
 
-    /**
-     * Dismisses the feedback dialog, increments [todayProgress] in the
-     * profile, and either advances to the next exercise or marks the
-     * session as complete (triggering [totalStudyDays] + 1).
-     */
     fun goToNextExercise() {
         viewModelScope.launch {
             val state    = _uiState.value
             val nextIndex = state.currentIndex + 1
 
-            // Always increment todayProgress when the user moves on
             val newProgress = state.todayProgress + 1
-            userProfileRepository.updateTodayProgress(newProgress, DEFAULT_USER_ID)
+            userProfileRepository.updateTodayProgress(newProgress, userId)
 
             if (nextIndex >= state.exerciseQueue.size) {
-                // ── Session complete ────────────────────────────────────
-                userProfileRepository.incrementStudyDays(DEFAULT_USER_ID)
+                userProfileRepository.incrementStudyDays(userId)
 
                 _uiState.update {
                     it.copy(
@@ -207,7 +207,6 @@ class ExerciseViewModel(
                     )
                 }
             } else {
-                // ── Advance to next exercise ────────────────────────────
                 _uiState.update {
                     it.copy(
                         currentIndex    = nextIndex,
@@ -221,16 +220,12 @@ class ExerciseViewModel(
         }
     }
 
-    /**
-     * Starts a brand-new session (e.g. after completing all exercises or
-     * on explicit retry). Re-reads the profile so dailyGoal is fresh.
-     */
     fun restartSession() {
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, errorMessage = null) }
             try {
-                val profile = userProfileRepository.getUserProfile(DEFAULT_USER_ID)
-                    ?: UserProfile(userId = DEFAULT_USER_ID)
+                val profile = userProfileRepository.getUserProfile(userId)
+                    ?: UserProfile(userId = userId)
                 fetchExerciseBatch(profile)
             } catch (e: Exception) {
                 _uiState.update {
@@ -239,41 +234,36 @@ class ExerciseViewModel(
             }
         }
     }
+    fun toggleDebugPanel() {
+        _uiState.update {
+            it.copy(showDebugPanel = !it.showDebugPanel)
+        }
+    }
 }
-
-// ─────────────────────────────────────────────────────────────────────────────
-// State classes
-// ─────────────────────────────────────────────────────────────────────────────
 
 data class ExerciseUiState(
 
-    // Current session queue (size == dailyGoal at fetch time)
     val exerciseQueue: List<ExerciseWithReferenceAnswers> = emptyList(),
     val currentIndex: Int = 0,
 
-    // Convenience pointer — always exerciseQueue[currentIndex]
     val currentExercise: ExerciseWithReferenceAnswers? = null,
 
-    // User input
     val userAnswer: String = "",
 
-    // Session-level counters (reset each session)
     val totalAnswered: Int = 0,
     val correctCount: Int = 0,
 
-    // Profile-level progress (persisted)
     val dailyGoal: Int = 10,
     val todayProgress: Int = 0,
 
-    // True when the user has finished all exercises in the queue
     val isSessionDone: Boolean = false,
 
-    // Feedback dialog shown after submitting
     val feedbackState: FeedbackState? = null,
 
-    // Loading / error
     val isLoading: Boolean = false,
-    val errorMessage: String? = null
+    val errorMessage: String? = null,
+    val selectionSteps: List<SelectionStepLog> = emptyList(),
+    val showDebugPanel: Boolean = false
 )
 
 data class FeedbackState(

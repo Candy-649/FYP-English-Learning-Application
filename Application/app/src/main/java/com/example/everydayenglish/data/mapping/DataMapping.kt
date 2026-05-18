@@ -12,7 +12,7 @@ fun ExerciseJson.toExercise() =
 
 fun ExerciseJson.toReferenceAnswer() =
     ReferenceAnswer(
-        exerciseId = promptId,
+        promptId = promptId,
         referId = referId,
         reference = reference,
         tense = tense,

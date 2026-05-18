@@ -10,18 +10,17 @@ import androidx.room.PrimaryKey
     foreignKeys = [
         ForeignKey(
             entity = Exercise::class,
-            parentColumns = ["id"],
-            childColumns = ["exerciseId"],
+            parentColumns = ["promptId"],
+            childColumns = ["promptId"],
             onDelete = ForeignKey.CASCADE
         )
     ],
-    indices = [Index("exerciseId")]
+    indices = [Index("promptId")]
 )
 data class ReferenceAnswer(
     @PrimaryKey(autoGenerate = true)
-    val answerId: Int = 0,
-    val exerciseId: Int,
     val referId: Int,
+    val promptId: Int,
     val reference: String,
     val tense: String? = null,
     val verbTagsLemmas: String? = null

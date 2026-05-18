@@ -19,13 +19,17 @@ import com.example.everydayenglish.ui.MainScreen
 import com.example.everydayenglish.ui.ProfileScreen
 import com.example.everydayenglish.ui.SettingScreen
 import com.example.everydayenglish.ui.SplashScreen
+import com.example.everydayenglish.ui.StatisticScreen
 import com.example.everydayenglish.ui.theme.EverydayEnglishTheme
 import com.example.everydayenglish.viewmodel.ExerciseViewModel
 import com.example.everydayenglish.viewmodel.MainViewModel
 import com.example.everydayenglish.viewmodel.ProfileViewModel
 import com.example.everydayenglish.viewmodel.SettingViewModel
 import com.example.everydayenglish.viewmodel.SplashViewModel
+import com.example.everydayenglish.viewmodel.StatisticViewModel
 import com.example.everydayenglish.viewmodel.toBubbles
+import androidx.core.net.toUri
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 
 sealed class Screen(val route: String){
     object MainScreen: Screen("main")
@@ -39,10 +43,13 @@ sealed class Screen(val route: String){
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
+        installSplashScreen()
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        PainterDefaults.defaultAvatarUri = Uri.parse("android.resource://${packageName}/${R.drawable.default_avatar}")
-        PainterDefaults.defaultProfileBackgroundUri = Uri.parse("android.resource://${packageName}/${R.drawable.default_profile_background}")
+        PainterDefaults.defaultAvatarUri =
+            "android.resource://${packageName}/${R.drawable.default_avatar}".toUri()
+        PainterDefaults.defaultProfileBackgroundUri =
+            "android.resource://${packageName}/${R.drawable.default_profile_background}".toUri()
         setContent {
             EverydayEnglishTheme {
                 AppNavigation()
@@ -60,14 +67,28 @@ fun AppNavigation(
     val profileViewModel: ProfileViewModel = viewModel(factory = AppViewModelProvider.Factory)
     val settingViewModel: SettingViewModel = viewModel(factory = AppViewModelProvider.Factory)
     val mainViewModel: MainViewModel = viewModel(factory = AppViewModelProvider.Factory)
+    val statisticViewModel: StatisticViewModel = viewModel(factory = AppViewModelProvider.Factory)
+
 
     NavHost(
         navController = navController,
-        startDestination = Screen.MainScreen.route
+        startDestination = Screen.SplashScreen.route
     ){
         composable(Screen.MainScreen.route){
             MainScreen(
-                uiState = mainViewModel.uiState.collectAsState().value
+                uiState = mainViewModel.uiState.collectAsState().value,
+                onProfileClick = {
+                    navController.navigate(Screen.ProfileScreen.route)
+                },
+                onStudyClick = {
+                    navController.navigate(Screen.ExerciseScreen.route)
+                },
+                onStatisticClick = {
+                    navController.navigate(Screen.StatisticScreen.route)
+                },
+                onSettingClick = {
+                    navController.navigate(Screen.SettingScreen.route)
+                }
             )
         }
         composable(Screen.ExerciseScreen.route){
@@ -96,13 +117,33 @@ fun AppNavigation(
             val uiState = profileViewModel.uiState.collectAsState()
             ProfileScreen(
                 uiState = uiState.value,
-                bubbles = uiState.value.toBubbles()
+                bubbles = uiState.value.toBubbles(),
+                onBackClick = {
+                    navController.popBackStack(
+                        Screen.MainScreen.route,
+                        inclusive = false
+                    )
+                }
             )
         }
         composable(Screen.SplashScreen.route){
-            SplashScreen(splashViewModel)
+            SplashScreen(
+                onNavigation = {
+                    navController.navigate(Screen.MainScreen.route)
+                },
+                viewModel = splashViewModel)
         }
-        composable(Screen.StatisticScreen.route){}
+        composable(Screen.StatisticScreen.route){
+            StatisticScreen(
+                uiState = statisticViewModel.uiState.collectAsState().value,
+                onBackClick = {
+                    navController.popBackStack(
+                        Screen.MainScreen.route,
+                        inclusive = false
+                    )
+                }
+            )
+        }
         composable(Screen.SettingScreen.route){
             SettingScreen(
                 uiState = settingViewModel.uiState.collectAsState().value,

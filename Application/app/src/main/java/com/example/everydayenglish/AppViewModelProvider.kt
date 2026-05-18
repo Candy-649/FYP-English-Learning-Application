@@ -9,6 +9,7 @@ import com.example.everydayenglish.viewmodel.MainViewModel
 import com.example.everydayenglish.viewmodel.ProfileViewModel
 import com.example.everydayenglish.viewmodel.SettingViewModel
 import com.example.everydayenglish.viewmodel.SplashViewModel
+import com.example.everydayenglish.viewmodel.StatisticViewModel
 
 
 object AppViewModelProvider {
@@ -25,7 +26,9 @@ object AppViewModelProvider {
         initializer {
             ExerciseViewModel(
                 everydayEnglishApplication().container.exerciseRepository,
-                everydayEnglishApplication().container.banditRepository
+                everydayEnglishApplication().container.banditRepository,
+                everydayEnglishApplication().container.recordRepository,
+                everydayEnglishApplication().container.userProfileRepository
             )
         }
         initializer {
@@ -43,6 +46,13 @@ object AppViewModelProvider {
             MainViewModel(
                 everydayEnglishApplication().container.userProfileRepository,
                 everydayEnglishApplication().container.appPreferencesRepository
+            )
+        }
+        initializer {
+            StatisticViewModel(
+                everydayEnglishApplication().container.userProfileRepository,
+                everydayEnglishApplication().container.recordRepository,
+                everydayEnglishApplication().container.exerciseRepository
             )
         }
     }

@@ -151,15 +151,9 @@ class ProfileViewModel(
     }
 }
 
-fun calculateBubbleSize(value: Int): Dp {
-    return (40 + ln(value.toFloat() + 1) * 20).dp
-}
-fun calculateFontSize(value: Int): TextUnit {
-    return (16 + ln(value.toFloat() + 1) * 4).sp
-}
+fun ProfileUiState.toBubbles(): List<ProfileBubble> {
 
-fun ProfileUiState.toBubbles(): List<ProfileBubble>{
-    return listOf(
+    val rawList = listOf(
         ProfileBubble(
             id = 1,
             title = "Study Days",
@@ -185,13 +179,61 @@ fun ProfileUiState.toBubbles(): List<ProfileBubble>{
             description = "Did you complete today's goal?"
         )
     )
+
+    return calculateProportionalBubbles(rawList)
 }
+
+/**
+ * 按比例分配泡泡大小。
+ * - minSize / maxSize 控制泡泡的尺寸范围
+ * - 所有值为 0 时平均分配
+ * - 值差距极大时，用 sqrt 做阻尼，避免小泡泡被压到最小值
+ */
+fun calculateProportionalBubbles(
+    bubbles: List<ProfileBubble>,
+    minSize: Dp = 96.dp,
+    maxSize: Dp = 186.dp,
+    minFontSize: TextUnit = 16.sp,
+    maxFontSize: TextUnit = 32.sp
+): List<ProfileBubble> {
+
+    if (bubbles.isEmpty()) return bubbles
+
+    // 用 sqrt 做阻尼，缩小极端差距
+    val dampedValues = bubbles.map { kotlin.math.sqrt(it.value.toFloat() + 1f) }
+    val minVal = dampedValues.min()
+    val maxVal = dampedValues.max()
+    val range = maxVal - minVal
+
+    return bubbles.mapIndexed { index, bubble ->
+        // 归一化到 0..1，所有值相同时归一化为 0.5（居中）
+        val normalized = if (range < 0.001f) {
+            0.5f
+        } else {
+            (dampedValues[index] - minVal) / range
+        }
+
+        val sizeDp = minSize + (maxSize - minSize) * normalized
+        val fontSize =
+            minFontSize.value +
+                    (maxFontSize.value - minFontSize.value) * normalized
+        val finalFontSize = fontSize.sp
+        bubble.copy(
+            size = sizeDp,
+            fontSize = finalFontSize
+        )
+    }
+}
+
+
 
 data class ProfileBubble(
     val id: Int,
     val title: String,
     val value: Int,
-    val description: String
+    val description: String,
+    val size: Dp = 96.dp,
+    val fontSize: TextUnit = 16.sp
 )
 
 data class ProfileUiState(

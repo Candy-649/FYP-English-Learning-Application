@@ -6,7 +6,7 @@ import androidx.room.PrimaryKey
 @Entity(tableName = "user_profiles")
 data class UserProfile(
     @PrimaryKey
-    val userId: String?,                        // single user app, default to 1
+    val userId: String,                        // single user app, default to 1
     val userName: String = "",
     val avatarUri: String = "",                 // Uri stored as String
     val bio: String = "About me",

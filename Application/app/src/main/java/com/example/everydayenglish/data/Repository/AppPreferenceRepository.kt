@@ -1,7 +1,7 @@
 package com.example.everydayenglish.data.Repository
 
 interface AppPreferencesRepository {
-    fun getUserId(): String?
+    fun getUserId(): String
     fun saveUserId(userId: String)
     fun isFirstLaunch(): Boolean
     fun setFirstLaunchDone()

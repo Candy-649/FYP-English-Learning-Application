@@ -25,17 +25,17 @@ interface ExerciseDao {
             List<ExerciseWithReferenceAnswers>
 
     @Transaction
-    @Query("SELECT * FROM exercises WHERE id = :id")
+    @Query("SELECT * FROM exercises WHERE promptId = :id")
     suspend fun getExerciseWithReferenceAnswersById(id: Int):
             ExerciseWithReferenceAnswers
 
-    @Query("SELECT * FROM exercises WHERE id = :id")
+    @Query("SELECT * FROM exercises WHERE promptId = :id")
     suspend fun getExerciseById(id: Int): Exercise
 
     @Query(
         """
         SELECT e.* FROM exercises e
-        INNER JOIN reference_answers r ON e.promptId = r.exerciseId
+        INNER JOIN reference_answers r ON e.promptId = r.promptId
         WHERE r.tense = :tense
         GROUP BY e.promptId
     """

@@ -20,6 +20,6 @@ class OfflineRecordRepository(
     override suspend fun deleteExerciseRecord(exerciseRecord: ExerciseRecord) =
         exerciseRecordDao.deleteExerciseRecord(exerciseRecord)
 
-    override suspend fun getRecordsByExerciseId(exerciseId: Int): List<ExerciseRecord> =
-        exerciseRecordDao.getRecordsByExerciseId(exerciseId)
+    override suspend fun getRecordsByPromptId(promptId: Int): List<ExerciseRecord> =
+        exerciseRecordDao.getRecordsByPromptId(promptId)
 }

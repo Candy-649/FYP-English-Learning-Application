@@ -32,7 +32,7 @@ class MainViewModel(
 
         viewModelScope.launch {
 
-            val userId =
+            val userId: String =
                 appPreferencesRepository
                     .getUserId()
 

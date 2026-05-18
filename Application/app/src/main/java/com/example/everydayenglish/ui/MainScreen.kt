@@ -32,7 +32,6 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.example.everydayenglish.R
 import com.example.everydayenglish.ui.components.JumpCard
-import com.example.everydayenglish.ui.components.SettingsItem
 import com.example.everydayenglish.ui.components.SettingsSection
 import com.example.everydayenglish.viewmodel.MainUiState
 
@@ -40,13 +39,17 @@ import com.example.everydayenglish.viewmodel.MainUiState
 @Composable
 fun MainScreen(
     uiState: MainUiState,
+    onProfileClick: () -> Unit,
+    onStudyClick: () -> Unit,
+    onStatisticClick: () -> Unit,
+    onSettingClick: () -> Unit
 ){
     Scaffold(
         topBar = {
             TopAppBar(
                 navigationIcon = {
                     IconButton(
-                        onClick = {/* profile */},
+                        onClick = onProfileClick,
                         modifier = Modifier
                             .padding(dimensionResource(R.dimen.padding_small))
                     ){
@@ -91,7 +94,7 @@ fun MainScreen(
                     .size(dimensionResource(R.dimen.progress_indicator))
             )
             OutlinedButton(
-                onClick = { /* Study */ },
+                onClick = onStudyClick,
                 modifier = Modifier
                     .align(Alignment.CenterHorizontally)
             ) {
@@ -105,11 +108,11 @@ fun MainScreen(
                     icon = Icons.Default.BarChart,
                     text = "Progress Statistic"
                 ) {
-                    /* Statistic Screen*/
+                    onStatisticClick()
                 }
                 JumpCard(
                     icon = Icons.Default.History,
-                    text = "Progress Statistic"
+                    text = "Study History"
                 ) {
                     /* History Screen */
                 }
@@ -117,7 +120,7 @@ fun MainScreen(
                     icon = Icons.Default.Settings,
                     text = "Study Settings"
                 ){
-                    /* Setting Screen */
+                    onSettingClick()
                 }
             }
         }
@@ -129,5 +132,11 @@ fun MainScreen(
 @Preview(showBackground = true)
 @Composable
 fun MainScreenPreview(){
-    MainScreen(uiState = MainUiState())
+    MainScreen(
+        uiState = MainUiState(),
+        onProfileClick = {},
+        onStudyClick = {},
+        onStatisticClick = {},
+        onSettingClick = {}
+    )
 }

@@ -7,8 +7,8 @@ import androidx.room.Relation
 data class ExerciseWithReferenceAnswers(
     @Embedded val exercise: Exercise,
     @Relation(
-        parentColumn = "id",
-        entityColumn = "exerciseId"
+        parentColumn = "promptId",
+        entityColumn = "promptId"
     )
     val answers: List<ReferenceAnswer>
 )

@@ -44,4 +44,7 @@ class OfflineBanditRepository(
     }
     override fun getStats(): Map<TenseCategory, Pair<Double, Int>> =
         bandit.getArmStats()
+    override fun getTotalPulls() = bandit.totalPulls
+    override fun getWindowSize() = bandit.windowSize
+    override fun getExplorationC() = bandit.explorationC
 }

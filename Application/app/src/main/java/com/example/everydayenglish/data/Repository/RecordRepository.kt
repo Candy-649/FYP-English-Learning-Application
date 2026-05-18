@@ -8,5 +8,5 @@ interface RecordRepository {
     suspend fun getAllExerciseRecords(): List<ExerciseRecord>
     suspend fun getRecordById(id: Int): ExerciseRecord?
     suspend fun deleteExerciseRecord(exerciseRecord: ExerciseRecord)
-    suspend fun getRecordsByExerciseId(exerciseId: Int): List<ExerciseRecord>
+    suspend fun getRecordsByPromptId(promptId: Int): List<ExerciseRecord>
 }

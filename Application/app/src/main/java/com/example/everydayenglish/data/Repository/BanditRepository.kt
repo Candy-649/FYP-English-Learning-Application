@@ -7,4 +7,7 @@ interface BanditRepository {
     suspend fun update(category: TenseCategory, isCorrect: Boolean, timestamp: Long)
     suspend fun restoreFromRecords()
     fun getStats(): Map<TenseCategory, Pair<Double, Int>>
+    fun getTotalPulls(): Int
+    fun getWindowSize(): Int
+    fun getExplorationC(): Double
 }
