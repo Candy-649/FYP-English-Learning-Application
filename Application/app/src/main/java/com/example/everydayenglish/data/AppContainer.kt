@@ -3,6 +3,7 @@ package com.example.everydayenglish.data
 import android.content.Context
 import androidx.room.Room
 import com.example.everydayenglish.data.OfflineRepository.OfflineAppPreferencesRepository
+import com.example.everydayenglish.data.OfflineRepository.OfflineAttemptRepository
 import com.example.everydayenglish.data.OfflineRepository.OfflineBanditRepository
 import com.example.everydayenglish.data.OfflineRepository.OfflineRecordRepository
 import com.example.everydayenglish.data.OfflineRepository.OfflineUserProfileRepository
@@ -13,6 +14,7 @@ import com.example.everydayenglish.data.Repository.RecordRepository
 import com.example.everydayenglish.data.Repository.UserProfileRepository
 import com.example.everydayenglish.data.dataStore.dataStore
 import com.example.everydayenglish.data.OfflineRepository.OfflineExerciseRepository
+import com.example.everydayenglish.data.Repository.AttemptRepository
 
 interface AppContainer {
     val exerciseRepository: ExerciseRepository
@@ -20,6 +22,7 @@ interface AppContainer {
     val userProfileRepository: UserProfileRepository
     val appPreferencesRepository: AppPreferencesRepository
     val banditRepository: BanditRepository
+    val attemptRepository: AttemptRepository
 }
 
 class AppDataContainer(context: Context) : AppContainer {
@@ -43,6 +46,11 @@ class AppDataContainer(context: Context) : AppContainer {
             context.dataStore
         )
     override val banditRepository: BanditRepository =
-        OfflineBanditRepository(database.recordDao(), database.referenceAnswerDao())
-
+        OfflineBanditRepository(
+            database.questionAttemptDao()
+        )
+    override val attemptRepository: AttemptRepository =
+        OfflineAttemptRepository(
+            database.questionAttemptDao()
+        )
 }

@@ -9,7 +9,7 @@ class SwUcbBandit(
     val windowSize: Int = 30,
     val explorationC: Double = 2.0
 ) {
-    private val arms: Map<TenseCategory, ArmState> =
+    private val arms: MutableMap<TenseCategory, ArmState> =
         TenseCategory.entries.associateWith { ArmState(category = it) }
             .toMutableMap()
 
@@ -22,7 +22,7 @@ class SwUcbBandit(
         totalPulls++
 
         return arms.values.maxByOrNull { arm ->
-            val mu = arm.successRate()
+            val mu = arm.averageAccuracy()
             val n = arm.count()
             val explorationBonus = explorationC *
                     sqrt(ln(minOf(totalPulls, windowSize).toDouble()) / n)
@@ -30,19 +30,17 @@ class SwUcbBandit(
         }!!.category
     }
 
-    fun update(category: TenseCategory, isCorrect: Boolean, timestamp: Long) {
+    // accuracy: 0.0~1.0
+    fun update(category: TenseCategory, accuracy: Double, timestamp: Long) {
         val arm = arms[category] ?: return
-
-        arm.window.addLast(Pair(timestamp, isCorrect))
+        arm.window.addLast(Pair(timestamp, accuracy))
         while (arm.window.size > windowSize) {
             arm.window.removeFirst()
         }
     }
-    fun restoreFromRecords(records: List<ExerciseRecord>, getReferenceAnswer: suspend (Int) -> ReferenceAnswer?) {
-    }
 
     fun getArmStats(): Map<TenseCategory, Pair<Double, Int>> =
         arms.mapValues { (_, arm) ->
-            Pair(arm.successRate(), arm.count())
+            Pair(arm.averageAccuracy(), arm.count())
         }
 }

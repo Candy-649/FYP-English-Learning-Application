@@ -59,6 +59,9 @@ class MainViewModel(
             }
         }
     }
+    fun refresh(){
+        loadUserInfo()
+    }
 }
 
 data class MainUiState(

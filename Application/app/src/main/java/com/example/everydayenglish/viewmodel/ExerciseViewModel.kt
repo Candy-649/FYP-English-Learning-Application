@@ -4,18 +4,22 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.everydayenglish.adaptiveEngine.TenseCategory
 import com.example.everydayenglish.data.Repository.AppPreferencesRepository
+import com.example.everydayenglish.data.Repository.AttemptRepository
 import com.example.everydayenglish.data.Repository.BanditRepository
 import com.example.everydayenglish.data.Repository.ExerciseRepository
 import com.example.everydayenglish.data.Repository.RecordRepository
 import com.example.everydayenglish.data.Repository.UserProfileRepository
 import com.example.everydayenglish.data.entity.ExerciseRecord
 import com.example.everydayenglish.data.entity.ExerciseWithReferenceAnswers
+import com.example.everydayenglish.data.entity.QuestionAttempt
 import com.example.everydayenglish.data.entity.ReferenceAnswer
 import com.example.everydayenglish.data.entity.UserProfile
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlin.math.ln
+import kotlin.math.sqrt
 import kotlin.random.Random
 
 // Default user ID for a single-user app
@@ -42,7 +46,8 @@ class ExerciseViewModel(
     private val banditRepository: BanditRepository,
     private val recordRepository: RecordRepository,
     private val userProfileRepository: UserProfileRepository,
-    private val appPreferencesRepository: AppPreferencesRepository
+    private val appPreferencesRepository: AppPreferencesRepository,
+    private val attemptRepository: AttemptRepository
 ) : ViewModel() {
 
     private val userId: String
@@ -78,6 +83,7 @@ class ExerciseViewModel(
     private suspend fun fetchExerciseBatch(profile: UserProfile) {
         val dailyGoal = profile.dailyGoal.coerceAtLeast(1)
         val batch = mutableListOf<ExerciseWithReferenceAnswers>()
+        val steps = mutableListOf<SelectionStepLog>()
 
         repeat(dailyGoal) {
             val armStatesBefore = banditRepository.getStats()
@@ -89,8 +95,26 @@ class ExerciseViewModel(
             val armDetails = armStatesBefore.map { (cat, stats) ->
                 val (mu, n) = stats
                 val ucbBonus = if (n == 0) -1.0 else
-
+                    explorationC * sqrt(ln(minOf(totalPulls, windowSize).toDouble()) / n)
+                val ucbScore = if (n == 0) Double.MAX_VALUE else mu + ucbBonus
+                ArmDebugInfo(
+                    category = cat,
+                    mu = mu,
+                    n = n,
+                    ucbBonus = ucbBonus,
+                    ucbScore = ucbScore,
+                    isSelected = cat == category
+                )
             }
+            steps.add(
+                SelectionStepLog(
+                    stepIndex = batch.size,
+                    totalPulls = totalPulls,
+                    selectedCategory = category,
+                    wasUnexplored = anyUnexplored,
+                    armDetails = armDetails
+                )
+            )
             val exercise = exerciseRepository
                 .getExercisesByCategory(category)
                 .randomOrNull()
@@ -121,9 +145,11 @@ class ExerciseViewModel(
                 isSessionDone    = false,
                 isLoading        = false,
                 errorMessage     = null,
-                currentExercise  = batch.first()
+                currentExercise  = batch.first(),
+                selectionSteps = steps
             )
         }
+        refreshArmStats()
     }
 
 
@@ -134,47 +160,32 @@ class ExerciseViewModel(
 
     fun submitAnswer() {
         viewModelScope.launch {
-            val state       = _uiState.value
-            val exercise    = state.currentExercise ?: return@launch
-            val userAnswer  = state.userAnswer.trim()
+            val state     = _uiState.value
+            val exercise  = state.currentExercise ?: return@launch
+            val userAnswer = state.userAnswer.trim()
             if (userAnswer.isBlank()) return@launch
 
+            val newTries = state.currentTries + 1
+
+            // TODO: 替换成真实 AI 评估
             val isCorrect     = Random.nextBoolean()
             val matchedAnswer = exercise.answers.randomOrNull()
 
-            val record = ExerciseRecord(
-                promptId = exercise.exercise.promptId,
-                userId = userId.toIntOrNull() ?: 1,
-                referId = matchedAnswer?.referId ?: -1,
-                userAnswer = userAnswer,
-                isCorrect = isCorrect,
-                grammar = null,
-                semanticScore = null,
-                feedback = null,
-                timestamp = System.currentTimeMillis()
-            )
-            recordRepository.insertExerciseRecord(record)
-
-            val category = matchedAnswer
-                ?.tense
-                ?.let { TenseCategory.fromTenseString(it) }
-
-            if (category != null) {
-                banditRepository.update(
-                    category  = category,
-                    isCorrect = isCorrect,
-                    timestamp = System.currentTimeMillis()
+            recordRepository.insertExerciseRecord(
+                ExerciseRecord(
+                    promptId   = exercise.exercise.promptId,
+                    userId     = userId.toIntOrNull() ?: 1,
+                    referId    = matchedAnswer?.referId ?: -1,
+                    userAnswer = userAnswer,
+                    isCorrect  = isCorrect,
+                    timestamp  = System.currentTimeMillis()
                 )
-            }
-
-            if (isCorrect) {
-                userProfileRepository.incrementSentencesCompleted(userId)
-            }
+            )
 
             _uiState.update {
                 it.copy(
-                    totalAnswered = it.totalAnswered + 1,
-                    correctCount  = if (isCorrect) it.correctCount + 1 else it.correctCount,
+                    currentTries  = newTries,
+                    userAnswer    = "",       // 清空输入框准备重试
                     feedbackState = FeedbackState(
                         isCorrect              = isCorrect,
                         matchedReferenceAnswer = matchedAnswer,
@@ -187,7 +198,70 @@ class ExerciseViewModel(
         }
     }
 
-    fun goToNextExercise() {
+    // 用户答对了，或者主动放弃，调这个
+    fun finishCurrentQuestion(gaveUp: Boolean = false) {
+        viewModelScope.launch {
+            val state    = _uiState.value
+            val feedback = state.feedbackState ?: return@launch
+            val exercise = state.currentExercise ?: return@launch
+            val tense    = feedback.matchedReferenceAnswer?.tense ?: return@launch
+
+            val solved   = !gaveUp && feedback.isCorrect
+            val accuracy = if (solved) 1.0 / state.currentTries else 0.0
+            val now      = System.currentTimeMillis()
+
+            // 保存到 QuestionAttempt
+            attemptRepository.insert(
+                QuestionAttempt(
+                    promptId = exercise.exercise.promptId,
+                    userId = userId,
+                    tense = tense,
+                    totalTries = state.currentTries,
+                    solved = solved,
+                    accuracy = accuracy
+                )
+            )  // 需要通过 repository 暴露，见下方
+            // 更新老虎机
+            banditRepository.updateFromAttempt(tense, accuracy, now)
+
+            if (solved) userProfileRepository.incrementSentencesCompleted(userId)
+
+            val newProgress = state.todayProgress + 1
+            val newAnswered = state.totalAnswered + 1
+            val newCorrect  = if (solved) state.correctCount + 1 else state.correctCount
+            userProfileRepository.updateTodayProgress(newProgress, userId)
+
+            if (newAnswered >= state.dailyGoal) {
+                userProfileRepository.incrementStudyDays(userId)
+                _uiState.update {
+                    it.copy(
+                        todayProgress   = newProgress,
+                        totalAnswered   = newAnswered,
+                        correctCount    = newCorrect,
+                        feedbackState   = null,
+                        isSessionDone   = true,
+                        currentExercise = null
+                    )
+                }
+            } else {
+                _uiState.update {
+                    it.copy(
+                        todayProgress = newProgress,
+                        totalAnswered = newAnswered,
+                        correctCount  = newCorrect,
+                        currentIndex  = state.currentIndex + 1,
+                        currentTries  = 0,
+                        feedbackState = null
+                    )
+                }
+                loadNextExercise()
+            }
+
+            refreshArmStats()
+        }
+    }
+
+    fun loadNextExercise() {
         viewModelScope.launch {
             val state    = _uiState.value
             val nextIndex = state.currentIndex + 1
@@ -234,10 +308,38 @@ class ExerciseViewModel(
             }
         }
     }
+    fun dismissFeedback() {
+        _uiState.update { it.copy(feedbackState = null) }
+    }
     fun toggleDebugPanel() {
         _uiState.update {
             it.copy(showDebugPanel = !it.showDebugPanel)
         }
+    }
+    private fun refreshArmStats() {
+        val stats = banditRepository.getStats()
+        val totalPulls = banditRepository.getTotalPulls()
+        val windowSize = banditRepository.getWindowSize()
+        val explorationC = banditRepository.getExplorationC()
+
+        val armDetails = stats.map { (cat, statsPair) ->
+            val (mu, n) = statsPair
+            val ucbBonus = if (n == 0) -1.0 else
+                explorationC * kotlin.math.sqrt(
+                    kotlin.math.ln(minOf(totalPulls, windowSize).toDouble()) / n
+                )
+            val ucbScore = if (n == 0) Double.MAX_VALUE else mu + ucbBonus
+            ArmDebugInfo(
+                category = cat,
+                mu = mu,
+                n = n,
+                ucbBonus = ucbBonus,
+                ucbScore = ucbScore,
+                isSelected = false
+            )
+        }.sortedByDescending { it.ucbScore }
+
+        _uiState.update { it.copy(currentArmStats = armDetails) }
     }
 }
 
@@ -249,7 +351,7 @@ data class ExerciseUiState(
     val currentExercise: ExerciseWithReferenceAnswers? = null,
 
     val userAnswer: String = "",
-
+    val currentTries: Int = 0,
     val totalAnswered: Int = 0,
     val correctCount: Int = 0,
 
@@ -263,7 +365,8 @@ data class ExerciseUiState(
     val isLoading: Boolean = false,
     val errorMessage: String? = null,
     val selectionSteps: List<SelectionStepLog> = emptyList(),
-    val showDebugPanel: Boolean = false
+    val showDebugPanel: Boolean = false,
+    val currentArmStats: List<ArmDebugInfo> = emptyList()
 )
 
 data class FeedbackState(

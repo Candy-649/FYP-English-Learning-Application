@@ -1,6 +1,5 @@
 package com.example.everydayenglish
 
-import android.net.Uri
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -30,6 +29,7 @@ import com.example.everydayenglish.viewmodel.StatisticViewModel
 import com.example.everydayenglish.viewmodel.toBubbles
 import androidx.core.net.toUri
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
+import androidx.lifecycle.compose.LifecycleResumeEffect
 
 sealed class Screen(val route: String){
     object MainScreen: Screen("main")
@@ -75,6 +75,10 @@ fun AppNavigation(
         startDestination = Screen.SplashScreen.route
     ){
         composable(Screen.MainScreen.route){
+            LifecycleResumeEffect(Unit){
+                mainViewModel.refresh()
+                onPauseOrDispose{}
+            }
             MainScreen(
                 uiState = mainViewModel.uiState.collectAsState().value,
                 onProfileClick = {
@@ -94,23 +98,15 @@ fun AppNavigation(
         composable(Screen.ExerciseScreen.route){
             val uiState = exerciseViewModel.uiState.collectAsState()
             ExerciseScreen(
-                uiState = uiState.value,
-                onAnswerChange = {
-                    exerciseViewModel.updateUserAnswer(it)
-                },
-                onSubmit = {
-                    exerciseViewModel.submitAnswer()
-                },
-                onNextExercise = {
-                    exerciseViewModel
-                        .goToNextExercise()
-                },
-                onReturn = {
-                    navController.popBackStack()
-                },
-                onRestartSession = {
-                    exerciseViewModel.restartSession()
-                }
+                uiState          = uiState.value,
+                onAnswerChange   = { exerciseViewModel.updateUserAnswer(it) },
+                onSubmit         = { exerciseViewModel.submitAnswer() },
+                onNext           = { exerciseViewModel.finishCurrentQuestion() },
+                onRetry          = { exerciseViewModel.dismissFeedback() },
+                onGiveUp         = { exerciseViewModel.finishCurrentQuestion(gaveUp = true) },
+                onReturn         = { navController.popBackStack() },
+                onRestartSession = { exerciseViewModel.restartSession() },
+                onToggleDebug    = { exerciseViewModel.toggleDebugPanel() }
             )
         }
         composable(Screen.ProfileScreen.route) {

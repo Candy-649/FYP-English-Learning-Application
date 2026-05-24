@@ -1,26 +1,42 @@
 package com.example.everydayenglish.ui
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.BugReport
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.ExpandLess
+import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
@@ -35,8 +51,13 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.dimensionResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -47,8 +68,10 @@ import com.example.everydayenglish.data.entity.Exercise
 import com.example.everydayenglish.data.entity.ExerciseWithReferenceAnswers
 import com.example.everydayenglish.data.entity.ReferenceAnswer
 import com.example.everydayenglish.ui.theme.EverydayEnglishTheme
+import com.example.everydayenglish.viewmodel.ArmDebugInfo
 import com.example.everydayenglish.viewmodel.ExerciseUiState
 import com.example.everydayenglish.viewmodel.FeedbackState
+import com.example.everydayenglish.viewmodel.SelectionStepLog
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -56,9 +79,12 @@ fun ExerciseScreen(
     uiState: ExerciseUiState,
     onAnswerChange: (String) -> Unit,
     onSubmit: () -> Unit,
-    onNextExercise: () -> Unit,  // now calls ViewModel.goToNextExercise()
+    onNext: () -> Unit,  // now calls ViewModel.goToNextExercise()
+    onRetry: () -> Unit,
+    onGiveUp: () -> Unit,
     onReturn: () -> Unit,
-    onRestartSession: () -> Unit // calls ViewModel.restartSession()
+    onRestartSession: () -> Unit,
+    onToggleDebug: () -> Unit
 ) {
     val exercise = uiState.currentExercise
 
@@ -76,7 +102,7 @@ fun ExerciseScreen(
                     ) {
                         // Left label: questions answered this session
                         Text(
-                            text = uiState.currentIndex.toString(),
+                            text = uiState.todayProgress.toString(),
                             style = MaterialTheme.typography.labelMedium
                         )
 
@@ -84,7 +110,7 @@ fun ExerciseScreen(
                         LinearProgressIndicator(
                             progress = {
                                 if (uiState.dailyGoal == 0) 0f
-                                else uiState.currentIndex.toFloat() / uiState.dailyGoal.toFloat()
+                                else uiState.todayProgress.toFloat() / uiState.dailyGoal.toFloat()
                             },
                             modifier = Modifier
                                 .weight(1f)
@@ -106,6 +132,18 @@ fun ExerciseScreen(
                             modifier = Modifier.padding(
                                 dimensionResource(R.dimen.padding_small)
                             )
+                        )
+                    }
+                },
+                actions = {
+                    IconButton(onClick = onToggleDebug) {
+                        Icon(
+                            imageVector = Icons.Default.BugReport,
+                            contentDescription = "Debug",
+                            tint = if (uiState.showDebugPanel)
+                                MaterialTheme.colorScheme.primary
+                            else
+                                MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
                         )
                     }
                 },
@@ -168,17 +206,280 @@ fun ExerciseScreen(
                     )
                 }
             }
+
+            AnimatedVisibility(
+                visible = uiState.showDebugPanel,
+                modifier = Modifier.align(Alignment.BottomEnd),
+                enter = slideInVertically { it } + fadeIn(),
+                exit = slideOutVertically { it } + fadeOut()
+            ) {
+                DebugPanel(
+                    steps = uiState.selectionSteps,
+                    currentArmStats = uiState.currentArmStats,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .fillMaxHeight(0.45f)
+                )
+            }
         }
     }
 
     uiState.feedbackState?.let { feedback ->
         FeedbackDialog(
-            feedback    = feedback,
-            onNext      = onNextExercise
+            feedback = feedback,
+            onNext   = onNext,
+            onRetry  = onRetry,
+            onGiveUp = onGiveUp
         )
     }
 }
 
+@Composable
+private fun FeedbackDialog(
+    feedback: FeedbackState,
+    onNext: () -> Unit,      // 答对了/放弃 → finishCurrentQuestion
+    onRetry: () -> Unit,     // 答错了重试 → 关闭 dialog 继续答
+    onGiveUp: () -> Unit     // 答错了放弃 → finishCurrentQuestion(gaveUp=true)
+) {
+    AlertDialog(
+        onDismissRequest = {},
+        title = { Text(if (feedback.isCorrect) "Correct! 🎉" else "Incorrect") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                feedback.matchedReferenceAnswer?.reference?.let {
+                    Text("Reference: $it", style = MaterialTheme.typography.bodyMedium)
+                }
+                feedback.feedback?.let { Text(it) }
+                feedback.grammar?.let { Text("Grammar: $it", style = MaterialTheme.typography.bodySmall) }
+                feedback.semanticScore?.let {
+                    Text("Similarity: ${"%.0f".format(it * 100)}%", style = MaterialTheme.typography.bodySmall)
+                }
+            }
+        },
+        confirmButton = {
+            if (feedback.isCorrect) {
+                TextButton(onClick = onNext) { Text("Next") }
+            } else {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    TextButton(onClick = onGiveUp) {
+                        Text("Give Up", color = MaterialTheme.colorScheme.error)
+                    }
+                    TextButton(onClick = onRetry) { Text("Retry") }
+                }
+            }
+        }
+    )
+}
+@Composable
+private fun DebugPanel(
+    steps: List<SelectionStepLog>,
+    currentArmStats: List<ArmDebugInfo>,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        modifier = modifier.padding(8.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainer
+        ),
+        elevation = CardDefaults.cardElevation(8.dp)
+    ) {
+        Column(modifier = Modifier.fillMaxSize()) {
+            Text(
+                text = "🔧 Bandit Debug Panel",
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
+            )
+            HorizontalDivider()
+
+            LazyColumn(modifier = Modifier.fillMaxSize()) {
+
+                item {
+                    Text(
+                        text = "Current Arm Stats",
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                    )
+                }
+                item {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 12.dp)
+                    ) {
+                        Text("Category", style = MaterialTheme.typography.labelSmall, modifier = Modifier.weight(2.5f), fontWeight = FontWeight.Bold)
+                        Text("μ",        style = MaterialTheme.typography.labelSmall, modifier = Modifier.weight(1f),   fontWeight = FontWeight.Bold, textAlign = TextAlign.End)
+                        Text("n",        style = MaterialTheme.typography.labelSmall, modifier = Modifier.weight(0.7f), fontWeight = FontWeight.Bold, textAlign = TextAlign.End)
+                        Text("UCB",      style = MaterialTheme.typography.labelSmall, modifier = Modifier.weight(1.2f), fontWeight = FontWeight.Bold, textAlign = TextAlign.End)
+                    }
+                }
+                if (currentArmStats.isEmpty()) {
+                    item {
+                        Text(
+                            text = "No data yet",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(12.dp)
+                        )
+                    }
+                } else {
+                    items(currentArmStats) { arm ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 12.dp, vertical = 2.dp)
+                        ) {
+                            Text(arm.category.displayName, style = MaterialTheme.typography.labelSmall, modifier = Modifier.weight(2.5f), maxLines = 1)
+                            Text("%.2f".format(arm.mu),    style = MaterialTheme.typography.labelSmall, modifier = Modifier.weight(1f),   textAlign = TextAlign.End)
+                            Text(arm.n.toString(),         style = MaterialTheme.typography.labelSmall, modifier = Modifier.weight(0.7f), textAlign = TextAlign.End)
+                            Text(
+                                text = if (arm.ucbScore == Double.MAX_VALUE) "∞" else "%.2f".format(arm.ucbScore),
+                                style = MaterialTheme.typography.labelSmall,
+                                modifier = Modifier.weight(1.2f),
+                                textAlign = TextAlign.End
+                            )
+                        }
+                    }
+                }
+
+                item {
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 6.dp))
+                    Text(
+                        text = "Selection History",
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                    )
+                }
+                if (steps.isEmpty()) {
+                    item {
+                        Text(
+                            text = "No steps yet",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(12.dp)
+                        )
+                    }
+                } else {
+                    items(steps) { step ->
+                        DebugStepItem(step = step)
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun DebugStepItem(step: SelectionStepLog) {
+    var expanded by remember { mutableStateOf(false) }
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { expanded = !expanded }
+            .padding(horizontal = 12.dp, vertical = 6.dp)
+    ) {
+        // 头部：Step 概览
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "Step ${step.stepIndex + 1}",
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.width(52.dp)
+            )
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = "▶ ${step.selectedCategory.displayName}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    text = "Pulls: ${step.totalPulls}  ${if (step.wasUnexplored) "🔍 Exploring" else "🎯 UCB"}",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            Icon(
+                imageVector = if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                contentDescription = null,
+                modifier = Modifier.size(16.dp)
+            )
+        }
+
+        // 展开：各 arm 的详细数据
+        AnimatedVisibility(visible = expanded) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 6.dp),
+                verticalArrangement = Arrangement.spacedBy(3.dp)
+            ) {
+                // 表头
+                Row(modifier = Modifier.fillMaxWidth()) {
+                    Text("Category",   style = MaterialTheme.typography.labelSmall, modifier = Modifier.weight(2.5f), fontWeight = FontWeight.Bold)
+                    Text("μ",          style = MaterialTheme.typography.labelSmall, modifier = Modifier.weight(1f),   fontWeight = FontWeight.Bold, textAlign = TextAlign.End)
+                    Text("n",          style = MaterialTheme.typography.labelSmall, modifier = Modifier.weight(0.7f), fontWeight = FontWeight.Bold, textAlign = TextAlign.End)
+                    Text("UCB",        style = MaterialTheme.typography.labelSmall, modifier = Modifier.weight(1.2f), fontWeight = FontWeight.Bold, textAlign = TextAlign.End)
+                }
+
+                step.armDetails
+                    .sortedByDescending { it.ucbScore }
+                    .forEach { arm ->
+                        val isSelected = arm.isSelected
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(
+                                    if (isSelected)
+                                        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
+                                    else
+                                        Color.Transparent
+                                )
+                                .padding(vertical = 1.dp)
+                        ) {
+                            Text(
+                                text = arm.category.displayName,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                                modifier = Modifier.weight(2.5f),
+                                maxLines = 1
+                            )
+                            Text(
+                                text = "%.2f".format(arm.mu),
+                                style = MaterialTheme.typography.labelSmall,
+                                modifier = Modifier.weight(1f),
+                                textAlign = TextAlign.End
+                            )
+                            Text(
+                                text = arm.n.toString(),
+                                style = MaterialTheme.typography.labelSmall,
+                                modifier = Modifier.weight(0.7f),
+                                textAlign = TextAlign.End
+                            )
+                            Text(
+                                text = if (arm.ucbScore == Double.MAX_VALUE) "∞"
+                                else "%.2f".format(arm.ucbScore),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                                modifier = Modifier.weight(1.2f),
+                                textAlign = TextAlign.End,
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                            )
+                        }
+                    }
+            }
+        }
+    }
+}
 
 @Composable
 private fun ExerciseContent(
@@ -465,9 +766,12 @@ fun ExerciseScreenPreview() {
             uiState          = mockState,
             onAnswerChange   = {},
             onSubmit         = {},
-            onNextExercise   = {},
+            onNext   = {},
             onReturn         = {},
-            onRestartSession = {}
+            onRestartSession = {},
+            onToggleDebug = {},
+            onRetry          = {},
+            onGiveUp         = {}
         )
     }
 }
@@ -486,9 +790,12 @@ fun ExerciseScreenDonePreview() {
             uiState          = mockState,
             onAnswerChange   = {},
             onSubmit         = {},
-            onNextExercise   = {},
+            onNext   = {},
             onReturn         = {},
-            onRestartSession = {}
+            onRestartSession = {},
+            onToggleDebug = {},
+            onRetry          = {},
+            onGiveUp         = {}
         )
     }
 }

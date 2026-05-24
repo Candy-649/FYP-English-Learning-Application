@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewmodel.CreationExtras
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
+import com.example.everydayenglish.data.Repository.AttemptRepository
 import com.example.everydayenglish.viewmodel.ExerciseViewModel
 import com.example.everydayenglish.viewmodel.MainViewModel
 import com.example.everydayenglish.viewmodel.ProfileViewModel
@@ -28,7 +29,9 @@ object AppViewModelProvider {
                 everydayEnglishApplication().container.exerciseRepository,
                 everydayEnglishApplication().container.banditRepository,
                 everydayEnglishApplication().container.recordRepository,
-                everydayEnglishApplication().container.userProfileRepository
+                everydayEnglishApplication().container.userProfileRepository,
+                everydayEnglishApplication().container.appPreferencesRepository,
+                everydayEnglishApplication().container.attemptRepository
             )
         }
         initializer {
