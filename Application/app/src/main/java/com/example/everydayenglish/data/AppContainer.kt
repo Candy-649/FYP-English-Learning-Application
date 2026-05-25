@@ -1,34 +1,39 @@
 package com.example.everydayenglish.data
 
+import com.example.everydayenglish.BuildConfig
 import android.content.Context
 import androidx.room.Room
 import com.example.everydayenglish.data.OfflineRepository.OfflineAppPreferencesRepository
 import com.example.everydayenglish.data.OfflineRepository.OfflineAttemptRepository
 import com.example.everydayenglish.data.OfflineRepository.OfflineBanditRepository
+import com.example.everydayenglish.data.OfflineRepository.OfflineExerciseRepository
 import com.example.everydayenglish.data.OfflineRepository.OfflineRecordRepository
 import com.example.everydayenglish.data.OfflineRepository.OfflineUserProfileRepository
 import com.example.everydayenglish.data.Repository.AppPreferencesRepository
+import com.example.everydayenglish.data.Repository.AttemptRepository
 import com.example.everydayenglish.data.Repository.BanditRepository
 import com.example.everydayenglish.data.Repository.ExerciseRepository
 import com.example.everydayenglish.data.Repository.RecordRepository
 import com.example.everydayenglish.data.Repository.UserProfileRepository
 import com.example.everydayenglish.data.dataStore.dataStore
-import com.example.everydayenglish.data.OfflineRepository.OfflineExerciseRepository
-import com.example.everydayenglish.data.Repository.AttemptRepository
 import com.example.everydayenglish.grammarChecker.GrammarChecker
-import com.example.everydayenglish.grammarChecker.OnnxGrammarChecker
+import com.example.everydayenglish.onlineEvaluation.DeepSeekSemanticChecker
+import com.example.everydayenglish.onlineEvaluation.SemanticChecker
+import com.example.everydayenglish.onlineEvaluation.SmartGrammarChecker
 
 interface AppContainer {
-    val exerciseRepository: ExerciseRepository
-    val recordRepository: RecordRepository
-    val userProfileRepository: UserProfileRepository
+    val exerciseRepository      : ExerciseRepository
+    val recordRepository        : RecordRepository
+    val userProfileRepository   : UserProfileRepository
     val appPreferencesRepository: AppPreferencesRepository
-    val banditRepository: BanditRepository
-    val attemptRepository: AttemptRepository
-    val grammarChecker: GrammarChecker                              // ← 新增
+    val banditRepository        : BanditRepository
+    val attemptRepository       : AttemptRepository
+    val grammarChecker          : GrammarChecker   // SmartGrammarChecker（自动切换）
+    val semanticChecker         : SemanticChecker  // ClaudeHaikuSemanticChecker
 }
 
 class AppDataContainer(context: Context) : AppContainer {
+
     private val database = Room.databaseBuilder(
         context,
         AppDatabase::class.java,
@@ -56,6 +61,11 @@ class AppDataContainer(context: Context) : AppContainer {
     override val attemptRepository: AttemptRepository =
         OfflineAttemptRepository(database.questionAttemptDao())
 
-    override val grammarChecker: GrammarChecker =               // ← 新增
-        OnnxGrammarChecker(context.applicationContext)
+    // 语法：有网 → LanguageTool，无网 → ONNX
+    override val grammarChecker =
+        SmartGrammarChecker(context.applicationContext)
+
+    // 语义：Claude Haiku（API Key 从 local.properties → BuildConfig 注入）
+    override val semanticChecker: SemanticChecker =
+        DeepSeekSemanticChecker(apiKey = BuildConfig.DEEPSEEK_API_KEY)
 }

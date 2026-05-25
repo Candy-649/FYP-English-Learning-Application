@@ -15,13 +15,13 @@ import com.example.everydayenglish.data.entity.QuestionAttempt
 import com.example.everydayenglish.data.entity.ReferenceAnswer
 import com.example.everydayenglish.data.entity.UserProfile
 import com.example.everydayenglish.grammarChecker.GrammarChecker
+import com.example.everydayenglish.onlineEvaluation.SemanticChecker
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlin.math.ln
 import kotlin.math.sqrt
-import kotlin.random.Random
 
 // Default user ID for a single-user app
 
@@ -49,7 +49,8 @@ class ExerciseViewModel(
     private val userProfileRepository: UserProfileRepository,
     private val appPreferencesRepository: AppPreferencesRepository,
     private val attemptRepository: AttemptRepository,
-    private val grammarChecker: GrammarChecker
+    private val grammarChecker: GrammarChecker,
+    private val semanticChecker: SemanticChecker
 ) : ViewModel() {
 
     private val userId: String
@@ -170,30 +171,34 @@ class ExerciseViewModel(
             val newTries = state.currentTries + 1
 
             val grammarResult = grammarChecker.check(userAnswer)
-            // TODO: 之后替换成真实语义评估
-            val isCorrect     = Random.nextBoolean()
-            val matchedAnswer = exercise.answers.randomOrNull()
+            val referenceTexts = exercise.answers.map { it.reference }
+            val semanticResult = semanticChecker.evaluate(userAnswer, referenceTexts)
+            val isCorrect = semanticResult.isCorrect
+            val matchedAnswer = exercise.answers.firstOrNull()
 
             recordRepository.insertExerciseRecord(
                 ExerciseRecord(
-                    promptId   = exercise.exercise.promptId,
-                    userId     = userId.toIntOrNull() ?: 1,
-                    referId    = matchedAnswer?.referId ?: -1,
-                    userAnswer = userAnswer,
-                    isCorrect  = isCorrect,
-                    timestamp  = System.currentTimeMillis()
+                    promptId      = exercise.exercise.promptId,
+                    userId        = userId.toIntOrNull() ?: 1,
+                    referId       = matchedAnswer?.referId ?: -1,
+                    userAnswer    = userAnswer,
+                    isCorrect     = isCorrect,
+                    grammar       = grammarResult.summary,
+                    semanticScore = semanticResult.score,
+                    feedback      = semanticResult.feedback,
+                    timestamp     = System.currentTimeMillis()
                 )
             )
 
             _uiState.update {
                 it.copy(
                     currentTries  = newTries,
-                    userAnswer    = "",       // 清空输入框准备重试
+                    userAnswer    = "",
                     feedbackState = FeedbackState(
                         isCorrect              = isCorrect,
                         matchedReferenceAnswer = matchedAnswer,
-                        feedback               = null,
-                        semanticScore          = null,
+                        feedback               = semanticResult.feedback,
+                        semanticScore          = semanticResult.score,
                         grammar                = grammarResult.summary
                     )
                 )
@@ -328,8 +333,8 @@ class ExerciseViewModel(
         val armDetails = stats.map { (cat, statsPair) ->
             val (mu, n) = statsPair
             val ucbBonus = if (n == 0) -1.0 else
-                explorationC * kotlin.math.sqrt(
-                    kotlin.math.ln(minOf(totalPulls, windowSize).toDouble()) / n
+                explorationC * sqrt(
+                    ln(minOf(totalPulls, windowSize).toDouble()) / n
                 )
             val ucbScore = if (n == 0) Double.MAX_VALUE else mu + ucbBonus
             ArmDebugInfo(
@@ -373,9 +378,9 @@ data class ExerciseUiState(
 )
 
 data class FeedbackState(
-    val isCorrect: Boolean,
-    val matchedReferenceAnswer: ReferenceAnswer? = null,
-    val feedback: String?,
-    val semanticScore: Double?,
-    val grammar: String?
+    val isCorrect              : Boolean,
+    val matchedReferenceAnswer : ReferenceAnswer? = null,
+    val feedback               : String?,          // Haiku 生成的自然语言反馈
+    val semanticScore          : Double?,          // 0.0 – 1.0
+    val grammar                : String?           // LT / ONNX 语法摘要
 )

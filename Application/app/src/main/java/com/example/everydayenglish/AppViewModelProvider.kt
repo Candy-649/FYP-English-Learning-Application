@@ -27,13 +27,14 @@ object AppViewModelProvider {
 
         initializer {
             ExerciseViewModel(
-                everydayEnglishApplication().container.exerciseRepository,
-                everydayEnglishApplication().container.banditRepository,
-                everydayEnglishApplication().container.recordRepository,
-                everydayEnglishApplication().container.userProfileRepository,
-                everydayEnglishApplication().container.appPreferencesRepository,
-                everydayEnglishApplication().container.attemptRepository,
-                everydayEnglishApplication().container.grammarChecker      // ← 新增
+                exerciseRepository       = everydayEnglishApplication().container.exerciseRepository,
+                banditRepository         = everydayEnglishApplication().container.banditRepository,
+                recordRepository         = everydayEnglishApplication().container.recordRepository,
+                userProfileRepository    = everydayEnglishApplication().container.userProfileRepository,
+                appPreferencesRepository = everydayEnglishApplication().container.appPreferencesRepository,
+                attemptRepository        = everydayEnglishApplication().container.attemptRepository,
+                grammarChecker           = everydayEnglishApplication().container.grammarChecker,
+                semanticChecker          = everydayEnglishApplication().container.semanticChecker  // ← 新增
             )
         }
 

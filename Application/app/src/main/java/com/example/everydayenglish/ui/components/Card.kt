@@ -67,15 +67,15 @@ fun <T> SwipeActionWrapper(
     content: @Composable (T) -> Unit
 ) {
     val dismissState = rememberSwipeToDismissBoxState(
-        confirmValueChange = {
-            if (it == SwipeToDismissBoxValue.EndToStart) {
-                onDelete(item)
-                true
-            } else {
-                false
-            }
-        }
+        initialValue = SwipeToDismissBoxValue.Settled
     )
+
+// 监听状态变化，手动处理
+    LaunchedEffect(dismissState.currentValue) {
+        if (dismissState.currentValue == SwipeToDismissBoxValue.EndToStart) {
+            onDelete(item)
+        }
+    }
 
     SwipeToDismissBox(
         state = dismissState,
@@ -185,7 +185,7 @@ fun<T> SettingsSingleChoiceSection(
     selectedIndex: Int,
     onOptionSelected: (T) -> Unit
 ) {
-    SettingsSection() {
+    SettingsSection {
         options.forEachIndexed { index, option ->
             Row(
                 modifier = modifier
@@ -222,7 +222,7 @@ fun SettingsMultipleChoiceSection(
     selectedIndices: List<Int>,
     onOptionToggled: (Int) -> Unit
 ) {
-    SettingsSection() {
+    SettingsSection {
         options.forEachIndexed { index, option ->
             Row(
                 modifier = modifier
@@ -273,8 +273,8 @@ fun SettingsSwitchItem(modifier: Modifier = Modifier, text: String, checked: Boo
 @Composable
 fun FoldCard(
     title: String,
-    expandedDefault: Boolean = false,
     modifier: Modifier = Modifier,
+    expandedDefault: Boolean = false,
     content: @Composable () -> Unit
 ){
     var expanded by remember { mutableStateOf(expandedDefault) }
@@ -435,14 +435,14 @@ fun InfoCard(
 )
 @Composable
 fun CardLightPreview() {
-    Column() {
+    Column {
         Text("Swipe Action Wrapper")
         SwipeActionWrapper(
             item = "Item",
             onDelete = {}
         ) { }
         Text("Setting Section")
-        SettingsSection() {
+        SettingsSection {
             SettingsItem(
                 text = "Setting Item"
             ) {}
@@ -490,14 +490,14 @@ fun CardLightPreview() {
 )
 @Composable
 fun CardNightPreview() {
-    Column() {
+    Column {
         Text("Swipe Action Wrapper")
         SwipeActionWrapper(
             item = "Item",
             onDelete = {}
         ) { }
         Text("Setting Section")
-        SettingsSection() {
+        SettingsSection {
             SettingsItem(
                 text = "Setting Item"
             ) {}

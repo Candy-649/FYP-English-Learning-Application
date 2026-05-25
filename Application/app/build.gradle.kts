@@ -1,9 +1,14 @@
+import java.util.Properties
 
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.ksp)
+}
+val localProps = Properties().also {
+    val f = rootProject.file("local.properties")
+    if (f.exists()) it.load(f.inputStream())
 }
 
 android {
@@ -20,6 +25,13 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        buildConfigField("String", "DEEPSEEK_API_KEY",
+            "\"${localProps["DEEPSEEK_API_KEY"] ?: ""}\"")
+
+    }
+    buildFeatures{
+        buildConfig = true
     }
 
     buildTypes {
@@ -73,6 +85,7 @@ dependencies {
     implementation(libs.vico.compose.m3)
     implementation(libs.coil.compose)
     implementation(libs.gson)
+    implementation(libs.okhttp)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
