@@ -14,6 +14,7 @@ import com.example.everydayenglish.data.entity.ExerciseWithReferenceAnswers
 import com.example.everydayenglish.data.entity.QuestionAttempt
 import com.example.everydayenglish.data.entity.ReferenceAnswer
 import com.example.everydayenglish.data.entity.UserProfile
+import com.example.everydayenglish.grammarChecker.GrammarChecker
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
@@ -47,7 +48,8 @@ class ExerciseViewModel(
     private val recordRepository: RecordRepository,
     private val userProfileRepository: UserProfileRepository,
     private val appPreferencesRepository: AppPreferencesRepository,
-    private val attemptRepository: AttemptRepository
+    private val attemptRepository: AttemptRepository,
+    private val grammarChecker: GrammarChecker
 ) : ViewModel() {
 
     private val userId: String
@@ -167,7 +169,8 @@ class ExerciseViewModel(
 
             val newTries = state.currentTries + 1
 
-            // TODO: 替换成真实 AI 评估
+            val grammarResult = grammarChecker.check(userAnswer)
+            // TODO: 之后替换成真实语义评估
             val isCorrect     = Random.nextBoolean()
             val matchedAnswer = exercise.answers.randomOrNull()
 
@@ -191,7 +194,7 @@ class ExerciseViewModel(
                         matchedReferenceAnswer = matchedAnswer,
                         feedback               = null,
                         semanticScore          = null,
-                        grammar                = null
+                        grammar                = grammarResult.summary
                     )
                 )
             }

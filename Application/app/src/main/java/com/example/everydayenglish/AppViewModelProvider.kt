@@ -24,6 +24,7 @@ object AppViewModelProvider {
                 everydayEnglishApplication().container.appPreferencesRepository
             )
         }
+
         initializer {
             ExerciseViewModel(
                 everydayEnglishApplication().container.exerciseRepository,
@@ -31,26 +32,31 @@ object AppViewModelProvider {
                 everydayEnglishApplication().container.recordRepository,
                 everydayEnglishApplication().container.userProfileRepository,
                 everydayEnglishApplication().container.appPreferencesRepository,
-                everydayEnglishApplication().container.attemptRepository
+                everydayEnglishApplication().container.attemptRepository,
+                everydayEnglishApplication().container.grammarChecker      // ← 新增
             )
         }
+
         initializer {
             ProfileViewModel(
                 everydayEnglishApplication().container.userProfileRepository,
                 everydayEnglishApplication().container.appPreferencesRepository
             )
         }
+
         initializer {
             SettingViewModel(
                 everydayEnglishApplication().container.appPreferencesRepository
             )
         }
+
         initializer {
             MainViewModel(
                 everydayEnglishApplication().container.userProfileRepository,
                 everydayEnglishApplication().container.appPreferencesRepository
             )
         }
+
         initializer {
             StatisticViewModel(
                 everydayEnglishApplication().container.userProfileRepository,

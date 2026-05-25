@@ -15,6 +15,8 @@ import com.example.everydayenglish.data.Repository.UserProfileRepository
 import com.example.everydayenglish.data.dataStore.dataStore
 import com.example.everydayenglish.data.OfflineRepository.OfflineExerciseRepository
 import com.example.everydayenglish.data.Repository.AttemptRepository
+import com.example.everydayenglish.grammarChecker.GrammarChecker
+import com.example.everydayenglish.grammarChecker.OnnxGrammarChecker
 
 interface AppContainer {
     val exerciseRepository: ExerciseRepository
@@ -23,6 +25,7 @@ interface AppContainer {
     val appPreferencesRepository: AppPreferencesRepository
     val banditRepository: BanditRepository
     val attemptRepository: AttemptRepository
+    val grammarChecker: GrammarChecker                              // ← 新增
 }
 
 class AppDataContainer(context: Context) : AppContainer {
@@ -40,17 +43,19 @@ class AppDataContainer(context: Context) : AppContainer {
 
     override val userProfileRepository: UserProfileRepository =
         OfflineUserProfileRepository(database.profileDao())
+
     override val appPreferencesRepository: AppPreferencesRepository =
         OfflineAppPreferencesRepository(
             context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE),
             context.dataStore
         )
+
     override val banditRepository: BanditRepository =
-        OfflineBanditRepository(
-            database.questionAttemptDao()
-        )
+        OfflineBanditRepository(database.questionAttemptDao())
+
     override val attemptRepository: AttemptRepository =
-        OfflineAttemptRepository(
-            database.questionAttemptDao()
-        )
+        OfflineAttemptRepository(database.questionAttemptDao())
+
+    override val grammarChecker: GrammarChecker =               // ← 新增
+        OnnxGrammarChecker(context.applicationContext)
 }
