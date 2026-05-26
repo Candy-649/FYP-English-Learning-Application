@@ -13,9 +13,7 @@ val localProps = Properties().also {
 
 android {
     namespace = "com.example.everydayenglish"
-    compileSdk {
-        version = release(36)
-    }
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.example.everydayenglish"
