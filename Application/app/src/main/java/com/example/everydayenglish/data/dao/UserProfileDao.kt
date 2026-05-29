@@ -29,4 +29,6 @@ interface UserProfileDao {
 
     @Query("UPDATE user_profiles SET totalStudyDays = totalStudyDays + 1 WHERE userId = :userId")
     suspend fun incrementStudyDays(userId: String)
+    @Query("UPDATE user_profiles SET recentSentenceCount = :count WHERE userId = :userId")
+    suspend fun updateSentenceCount(count: Int, userId: String)
 }

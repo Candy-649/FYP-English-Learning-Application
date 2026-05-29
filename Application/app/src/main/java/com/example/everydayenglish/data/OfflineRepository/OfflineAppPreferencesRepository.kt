@@ -7,11 +7,13 @@ import androidx.datastore.preferences.core.edit
 import com.example.everydayenglish.data.dataStore.PreferencesKeys
 import com.example.everydayenglish.data.Repository.AppPreferencesRepository
 import kotlinx.coroutines.flow.first
+import java.io.File
 
 
 class OfflineAppPreferencesRepository(
     private val prefs: SharedPreferences,
-    private val dataStore: DataStore<Preferences>
+    private val dataStore: DataStore<Preferences>,
+    private val cacheDir: File
 ) : AppPreferencesRepository {
 
     override fun getUserId(): String =
@@ -58,4 +60,26 @@ class OfflineAppPreferencesRepository(
             PreferencesKeys.DARK_MODE
         ] ?: false
     }
+    // OfflineAppPreferencesRepository 实现：
+    override suspend fun getNotification(): Boolean =
+        dataStore.data.first()[PreferencesKeys.NOTIFICATION] ?: true
+
+    override suspend fun saveNotification(enabled: Boolean) {
+        dataStore.edit { it[PreferencesKeys.NOTIFICATION] = enabled }
+    }
+
+    fun getCacheSizeText(): String {
+        val bytes = cacheDir.walkTopDown().sumOf { it.length() }
+        return when {
+            bytes < 1024 -> "${bytes} B"
+            bytes < 1024 * 1024 -> "${"%.1f".format(bytes / 1024.0)} KB"
+            else -> "${"%.1f".format(bytes / (1024.0 * 1024.0))} MB"
+        }
+    }
+    override suspend fun saveDarkModeOption(option: String) {
+        dataStore.edit { it[PreferencesKeys.DARK_MODE_OPTION] = option }
+    }
+
+    override suspend fun getDarkModeOption(): String =
+        dataStore.data.first()[PreferencesKeys.DARK_MODE_OPTION] ?: "AUTO"
 }

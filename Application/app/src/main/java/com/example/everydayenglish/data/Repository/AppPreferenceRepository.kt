@@ -12,4 +12,8 @@ interface AppPreferencesRepository {
     suspend fun saveDarkMode(enabled: Boolean)
 
     suspend fun getDarkMode(): Boolean
+    suspend fun saveNotification(enabled: Boolean)
+    suspend fun getNotification(): Boolean
+    suspend fun saveDarkModeOption(option: String)
+    suspend fun getDarkModeOption(): String
 }

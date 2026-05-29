@@ -38,7 +38,9 @@ class AppDataContainer(context: Context) : AppContainer {
         context,
         AppDatabase::class.java,
         "everyday_english_db"
-    ).build()
+    )
+        .addMigrations(AppDatabase.MIGRATION_1_2)
+        .build()
 
     override val exerciseRepository: ExerciseRepository =
         OfflineExerciseRepository(database.exerciseDao(), context.applicationContext)
@@ -52,7 +54,8 @@ class AppDataContainer(context: Context) : AppContainer {
     override val appPreferencesRepository: AppPreferencesRepository =
         OfflineAppPreferencesRepository(
             context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE),
-            context.dataStore
+            context.dataStore,
+            context.cacheDir
         )
 
     override val banditRepository: BanditRepository =

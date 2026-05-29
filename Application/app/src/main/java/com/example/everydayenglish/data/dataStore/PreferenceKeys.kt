@@ -15,6 +15,6 @@ object PreferencesKeys {
     val NOTIFICATION =
         booleanPreferencesKey("notification")
 
-    val LANGUAGE =
-        stringPreferencesKey("language")
+    val DARK_MODE_OPTION =
+        stringPreferencesKey("dark_mode_option")
 }

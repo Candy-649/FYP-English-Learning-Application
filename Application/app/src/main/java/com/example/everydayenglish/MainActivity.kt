@@ -143,7 +143,6 @@ fun AppNavigation(
         composable(Screen.SettingScreen.route){
             SettingScreen(
                 uiState = settingViewModel.uiState.collectAsState().value,
-                onLanguageClick = {},
                 onCacheClick = {},
                 onNotificationChange = {
                     settingViewModel
@@ -153,8 +152,15 @@ fun AppNavigation(
                     settingViewModel
                         .updateDarkMode(it)
                 },
-                onSentenceCountClick = {},
-                onDailyGoalClick = {}
+                onDarkModeOptionChange = { settingViewModel.updateDarkModeOption(it) },
+                onSentenceCountConfirm = {
+                    settingViewModel
+                        .updateSentenceCount(it)
+                },
+                onDailyGoalConfirm = {
+                    settingViewModel
+                        .updateDailyGoal(it)
+                }
             )
         }
     }

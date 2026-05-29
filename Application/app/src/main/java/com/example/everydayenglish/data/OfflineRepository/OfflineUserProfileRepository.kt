@@ -28,4 +28,6 @@ class OfflineUserProfileRepository(
 
     override suspend fun incrementStudyDays(userId: String) =
         userProfileDao.incrementStudyDays(userId)
+    override suspend fun updateSentenceCount(count: Int, userId: String) =
+        userProfileDao.updateSentenceCount(count, userId)
 }

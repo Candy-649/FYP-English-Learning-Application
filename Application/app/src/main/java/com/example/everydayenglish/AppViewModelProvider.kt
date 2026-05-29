@@ -47,7 +47,8 @@ object AppViewModelProvider {
 
         initializer {
             SettingViewModel(
-                everydayEnglishApplication().container.appPreferencesRepository
+                everydayEnglishApplication().container.appPreferencesRepository,
+                everydayEnglishApplication().container.userProfileRepository
             )
         }
 

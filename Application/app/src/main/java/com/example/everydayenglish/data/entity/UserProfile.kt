@@ -16,5 +16,6 @@ data class UserProfile(
     val currentStreak: Int = 0,
     val dailyGoal: Int = 10,
     val todayProgress: Int = 0,
-    val lastStudiedDate: Long = 0L              // for streak calculation
+    val lastStudiedDate: Long = 0L,              // for streak calculation
+    val recentSentenceCount: Int = 20
 )

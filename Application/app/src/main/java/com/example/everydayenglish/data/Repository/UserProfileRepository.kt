@@ -10,4 +10,5 @@ interface UserProfileRepository {
     suspend fun updateStreak(streak: Int, date: Long, userId: String)
     suspend fun incrementSentencesCompleted(userId: String)
     suspend fun incrementStudyDays(userId: String)
+    suspend fun updateSentenceCount(count: Int, userId: String)
 }
