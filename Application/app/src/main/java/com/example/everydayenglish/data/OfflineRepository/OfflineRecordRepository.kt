@@ -8,7 +8,7 @@ class OfflineRecordRepository(
     private val exerciseRecordDao: ExerciseRecordDao
 ) : RecordRepository {
 
-    override suspend fun insertExerciseRecord(exerciseRecord: ExerciseRecord) =
+    override suspend fun insertExerciseRecord(exerciseRecord: ExerciseRecord): Long =
         exerciseRecordDao.insertExerciseRecord(exerciseRecord)
 
     override suspend fun getAllExerciseRecords(): List<ExerciseRecord> =
@@ -22,4 +22,8 @@ class OfflineRecordRepository(
 
     override suspend fun getRecordsByPromptId(promptId: Int): List<ExerciseRecord> =
         exerciseRecordDao.getRecordsByPromptId(promptId)
+    override suspend fun getPendingRecords(): List<ExerciseRecord> =
+        exerciseRecordDao.getPendingRecords()
+    override suspend fun updateEvaluation(recordId: Int, score: Double, feedback: String, isCorrect: Boolean) =
+        exerciseRecordDao.updateEvaluation(recordId, score, feedback, isCorrect)
 }

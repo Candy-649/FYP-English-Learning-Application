@@ -39,7 +39,6 @@ class AppDataContainer(context: Context) : AppContainer {
         AppDatabase::class.java,
         "everyday_english_db"
     )
-        .addMigrations(AppDatabase.MIGRATION_1_2)
         .build()
 
     override val exerciseRepository: ExerciseRepository =

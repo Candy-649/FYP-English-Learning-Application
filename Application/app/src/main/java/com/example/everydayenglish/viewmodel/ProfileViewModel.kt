@@ -22,6 +22,10 @@ class ProfileViewModel(
     private val appPreferencesRepository: AppPreferencesRepository
 ) : ViewModel() {
 
+    fun refresh(){
+        loadProfile()
+    }
+
     private val _uiState =
         MutableStateFlow(ProfileUiState())
 

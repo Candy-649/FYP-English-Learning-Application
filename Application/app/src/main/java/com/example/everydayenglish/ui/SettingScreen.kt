@@ -8,11 +8,19 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -37,7 +45,7 @@ import com.example.everydayenglish.viewmodel.SettingUiState
 fun SettingScreen(
 
     uiState: SettingUiState,
-
+    onBackClick: () -> Unit,
     onCacheClick: () -> Unit,
 
     onNotificationChange: (Boolean) -> Unit,
@@ -61,24 +69,15 @@ fun SettingScreen(
 
     // Dark Mode Sheet
     if (showDarkModeSheet) {
+        val darkModeOptions = DarkModeOption.entries
+        val initialIndex = darkModeOptions.indexOf(uiState.darkModeOption).coerceAtLeast(0)
         ModalBottomSheet(onDismissRequest = { showDarkModeSheet = false }) {
             PickerSheetContent(title = "Dark Mode") {
                 WheelPicker(
-                    items = DarkModeOption.entries,
+                    items = darkModeOptions,
+                    initialIndex = initialIndex,          // 对准当前选项
                     selectedValue = { onDarkModeOptionChange(it) }
                 )
-                AnimatedVisibility(visible = uiState.darkModeOption == DarkModeOption.MANUAL) {
-                    Column {
-                        Spacer(modifier = Modifier.height(8.dp))
-                        SettingsSection {
-                            SettingsSwitchItem(
-                                text = "Dark Mode",
-                                checked = uiState.darkModeEnabled,
-                                onCheckedChange = onDarkModeChange
-                            )
-                        }
-                    }
-                }
             }
         }
     }
@@ -126,114 +125,142 @@ fun SettingScreen(
             }
         }
     }
-
-
-    Column(
-        modifier = Modifier
-            .padding(
-                dimensionResource(
-                    R.dimen.padding_medium
-                )
-            ),
-
-        verticalArrangement =
-            Arrangement.spacedBy(
-                dimensionResource(
-                    R.dimen.padding_medium
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("Settings") },
+                navigationIcon = {
+                    IconButton(onClick = onBackClick) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Back"
+                        )
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.primaryContainer
                 )
             )
-    ) {
-
-        Column {
-
-            Text(
-                "General Settings",
-
-                modifier =
-                    Modifier.padding(4.dp),
-
-                style =
-                    MaterialTheme
-                        .typography
-                        .titleLarge
-            )
-
-            SettingsSection {
-
-                SettingsInfoItem(
-
-                    text = "Cache size",
-
-                    value =
-                        uiState.cacheSizeText,
-
-                    onClick =
-                        onCacheClick
-                )
-
-                SettingsSwitchItem(
-
-                    text = "Notification",
-
-                    checked =
-                        uiState.notificationEnabled,
-
-                    onCheckedChange =
-                        onNotificationChange
-                )
-
-                SettingsInfoItem(
-                    text = "Dark Mode",
-                    value = when (uiState.darkModeOption) {
-                        DarkModeOption.AUTO   -> "Auto"
-                        DarkModeOption.MANUAL -> if (uiState.darkModeEnabled) "On" else "Off"
-                    },
-                    onClick = { showDarkModeSheet = true }
-                )
-            }
         }
+    ){paddingValues ->
+        Column(
+            modifier = Modifier
+                .padding(paddingValues)
+                .padding(
+                    dimensionResource(
+                        R.dimen.padding_medium
+                    )
+                ),
 
-        Column {
+            verticalArrangement =
+                Arrangement.spacedBy(
+                    dimensionResource(
+                        R.dimen.padding_medium
+                    )
+                )
+        ) {
 
-            Text(
-                "Study Settings",
+            Column {
 
-                modifier =
-                    Modifier.padding(4.dp),
+                Text(
+                    "General Settings",
 
-                style =
-                    MaterialTheme
-                        .typography
-                        .titleLarge
-            )
+                    modifier =
+                        Modifier.padding(4.dp),
 
-            SettingsSection {
-
-                SettingsInfoItem(
-
-                    text =
-                        "Sentences count for analysis",
-
-                    value =
-                        uiState
-                            .recentSentenceCount
-                            .toString(),
-
-                    onClick = { showSentenceSheet = true }
+                    style =
+                        MaterialTheme
+                            .typography
+                            .titleLarge
                 )
 
-                SettingsInfoItem(
+                SettingsSection {
 
-                    text = "Daily goal",
+                    SettingsInfoItem(
 
-                    value =
-                        uiState.dailyGoal.toString(),
+                        text = "Cache size",
 
-                    onClick = { showDailyGoalSheet = true }
+                        value =
+                            uiState.cacheSizeText,
+
+                        onClick =
+                            onCacheClick
+                    )
+
+                    SettingsSwitchItem(
+
+                        text = "Notification",
+
+                        checked =
+                            uiState.notificationEnabled,
+
+                        onCheckedChange =
+                            onNotificationChange
+                    )
+
+                    SettingsInfoItem(
+                        text = "Dark Mode",
+                        value = when (uiState.darkModeOption) {
+                            DarkModeOption.AUTO   -> "Auto"
+                            DarkModeOption.MANUAL -> if (uiState.darkModeEnabled) "On" else "Off"
+                        },
+                        onClick = { showDarkModeSheet = true }
+                    )
+                    AnimatedVisibility(visible = uiState.darkModeOption == DarkModeOption.MANUAL) {
+                        SettingsSwitchItem(
+                            text = "Enable Dark Mode",
+                            checked = uiState.darkModeEnabled,
+                            onCheckedChange = onDarkModeChange
+                        )
+                    }
+                }
+            }
+
+            Column {
+
+                Text(
+                    "Study Settings",
+
+                    modifier =
+                        Modifier.padding(4.dp),
+
+                    style =
+                        MaterialTheme
+                            .typography
+                            .titleLarge
                 )
+
+                SettingsSection {
+
+                    SettingsInfoItem(
+
+                        text =
+                            "Sentences count for analysis",
+
+                        value =
+                            uiState
+                                .recentSentenceCount
+                                .toString(),
+
+                        onClick = { showSentenceSheet = true }
+                    )
+
+                    SettingsInfoItem(
+
+                        text = "Daily goal",
+
+                        value =
+                            uiState.dailyGoal.toString(),
+
+                        onClick = { showDailyGoalSheet = true }
+                    )
+                }
             }
         }
     }
+
+
+
 }
 
 @Composable
@@ -282,6 +309,7 @@ fun SettingScreenPreview(){
                 darkModeEnabled = true,
             ),
             onCacheClick = {},
+            onBackClick = {},
             onNotificationChange = {},
             onDarkModeChange = {},
             onDarkModeOptionChange = {},

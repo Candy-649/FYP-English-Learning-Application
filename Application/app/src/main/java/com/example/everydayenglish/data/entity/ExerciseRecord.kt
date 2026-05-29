@@ -15,5 +15,6 @@ data class ExerciseRecord(
     val grammar: String? = null,
     val semanticScore: Double? = null,
     val feedback: String? = null,
+    val evaluationPending: Boolean = false,
     val timestamp: Long = System.currentTimeMillis()
 )

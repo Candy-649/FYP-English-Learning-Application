@@ -200,10 +200,11 @@ fun TenseBarChart(
     val labels = data.keys.toList()
 
     LaunchedEffect(data) {
+        if (data.isEmpty()) return@LaunchedEffect  // 加这一行
         modelProducer.runTransaction {
             columnSeries {
                 series(
-                    data.values.map { it.toFloat()}
+                    data.values.map { it.toFloat() }
                 )
             }
         }
@@ -238,7 +239,8 @@ fun DailyExerciseChart(
 ){
     val modelProducer = remember { CartesianChartModelProducer() }
 
-    LaunchedEffect(data){
+    LaunchedEffect(data) {
+        if (data.isEmpty()) return@LaunchedEffect  // 加这一行
         modelProducer.runTransaction {
             lineSeries {
                 series(

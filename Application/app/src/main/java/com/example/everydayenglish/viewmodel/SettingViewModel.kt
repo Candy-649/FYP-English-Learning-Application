@@ -80,6 +80,15 @@ class SettingViewModel(
     }
     fun updateDarkModeOption(option: DarkModeOption) =
         _uiState.update { it.copy(darkModeOption = option) }
+
+    fun clearCache() {
+        viewModelScope.launch {
+            val repo = appPreferencesRepository as? OfflineAppPreferencesRepository ?: return@launch
+            repo.clearCache()
+            val newSize = repo.getCacheSizeText()
+            _uiState.update { it.copy(cacheSizeText = newSize) }
+        }
+    }
 }
 
 data class SettingUiState(

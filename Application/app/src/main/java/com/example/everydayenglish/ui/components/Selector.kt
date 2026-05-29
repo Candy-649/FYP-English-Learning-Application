@@ -50,15 +50,17 @@ import kotlin.math.roundToInt
 @Composable
 fun <T> WheelPicker(
     items: List<T>,
+    modifier: Modifier = Modifier,
+    initialIndex: Int = 0,          // 新增
     itemHeight: Dp = 40.dp,
     visibleCount: Int = 5,
-    modifier: Modifier = Modifier,
     selectedValue: (T) -> Unit
-){
-    val listState = rememberLazyListState()
+) {
+    val listState = rememberLazyListState(
+        initialFirstVisibleItemIndex = initialIndex  // 用它初始化
+    )
     val coroutineScope = rememberCoroutineScope()
-
-    var selectedValue by remember { mutableStateOf(items.first()) }
+    var currentSelected by remember { mutableStateOf(items.getOrElse(initialIndex) { items.first() }) }
 
     val middleIndex = visibleCount / 2
     LazyColumn(
@@ -68,8 +70,8 @@ fun <T> WheelPicker(
     ) {
         itemsIndexed(items) { index, item ->
             val layoutInfo = listState.layoutInfo
-            val info = layoutInfo.visibleItemsInfo.firstOrNull{ it.index == index}
-            val maxDistance = layoutInfo.viewportSize.height.toFloat() /2f
+            val info = layoutInfo.visibleItemsInfo.firstOrNull { it.index == index }
+            val maxDistance = layoutInfo.viewportSize.height.toFloat() / 2f
             val alpha: Float = info?.let {
                 0.3f + (1f - (info.offset.toFloat() / maxDistance).absoluteValue).pow(2.5f) * 0.7f
             } ?: 0.3f
@@ -89,8 +91,8 @@ fun <T> WheelPicker(
     LaunchedEffect(listState.isScrollInProgress) {
         if (!listState.isScrollInProgress) {
             val centerIndex = listState.firstVisibleItemIndex
-            selectedValue(items.getOrNull(centerIndex) ?: selectedValue)
-
+            currentSelected = items.getOrNull(centerIndex) ?: currentSelected
+            selectedValue(currentSelected)
             coroutineScope.launch {
                 listState.animateScrollToItem(centerIndex)
             }
@@ -101,10 +103,10 @@ fun <T> WheelPicker(
 @Composable
 fun <T> RulerPicker(
     items: List<T>,
+    modifier: Modifier = Modifier,
     initialTick: Int = 0,
     itemWidth: Dp = 10.dp,
     visibleCount: Int = 30,
-    modifier: Modifier = Modifier,
     selectedValue: (T) -> Unit
 ) {
     val scrollState = rememberScrollState()

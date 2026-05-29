@@ -12,4 +12,7 @@ interface QuestionAttemptDao {
 
     @Query("SELECT * FROM question_attempts ORDER BY timestamp DESC LIMIT :limit")
     suspend fun getRecent(limit: Int): List<QuestionAttempt>
+
+    @Query("SELECT * FROM question_attempts WHERE userId = :userId ORDER BY timestamp DESC")
+    suspend fun getAllByUser(userId: String): List<QuestionAttempt>
 }

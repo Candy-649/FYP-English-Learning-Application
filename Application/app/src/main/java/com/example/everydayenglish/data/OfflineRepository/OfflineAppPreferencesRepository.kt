@@ -82,4 +82,14 @@ class OfflineAppPreferencesRepository(
 
     override suspend fun getDarkModeOption(): String =
         dataStore.data.first()[PreferencesKeys.DARK_MODE_OPTION] ?: "AUTO"
+    fun clearCache(): Boolean {
+        return try {
+            cacheDir.walkTopDown()
+                .filter { it.isFile }
+                .forEach { it.delete() }
+            true
+        } catch (e: Exception) {
+            false
+        }
+    }
 }

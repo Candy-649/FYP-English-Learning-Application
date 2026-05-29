@@ -5,4 +5,5 @@ import com.example.everydayenglish.data.entity.QuestionAttempt
 interface AttemptRepository {
     suspend fun insert(attempt: QuestionAttempt)
     suspend fun getRecent(limit: Int): List<QuestionAttempt>
+    suspend fun getAllByUser(userId: String): List<QuestionAttempt>
 }

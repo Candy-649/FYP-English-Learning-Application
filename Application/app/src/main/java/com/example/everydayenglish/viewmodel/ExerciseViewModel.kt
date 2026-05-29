@@ -163,45 +163,74 @@ class ExerciseViewModel(
 
     fun submitAnswer() {
         viewModelScope.launch {
-            val state     = _uiState.value
-            val exercise  = state.currentExercise ?: return@launch
+            val state      = _uiState.value
+            val exercise   = state.currentExercise ?: return@launch
             val userAnswer = state.userAnswer.trim()
             if (userAnswer.isBlank()) return@launch
 
-            val newTries = state.currentTries + 1
-
+            val newTries      = state.currentTries + 1
             val grammarResult = grammarChecker.check(userAnswer)
-            val referenceTexts = exercise.answers.map { it.reference }
-            val semanticResult = semanticChecker.evaluate(userAnswer, referenceTexts)
-            val isCorrect = semanticResult.isCorrect
             val matchedAnswer = exercise.answers.firstOrNull()
+            val referenceTexts = exercise.answers.map { it.reference }
 
-            recordRepository.insertExerciseRecord(
+            // 先存，标记为待评估
+            val recordId = recordRepository.insertExerciseRecord(
                 ExerciseRecord(
-                    promptId      = exercise.exercise.promptId,
-                    userId        = userId.toIntOrNull() ?: 1,
-                    referId       = matchedAnswer?.referId ?: -1,
-                    userAnswer    = userAnswer,
-                    isCorrect     = isCorrect,
-                    grammar       = grammarResult.summary,
-                    semanticScore = semanticResult.score,
-                    feedback      = semanticResult.feedback,
-                    timestamp     = System.currentTimeMillis()
+                    promptId          = exercise.exercise.promptId,
+                    userId            = userId.toIntOrNull() ?: 1,
+                    referId           = matchedAnswer?.referId ?: -1,
+                    userAnswer        = userAnswer,
+                    isCorrect         = false,
+                    grammar           = grammarResult.summary,
+                    evaluationPending = true,   // 待评估
                 )
             )
 
+            // UI 先显示 grammar，semantic 显示 loading 状态
             _uiState.update {
                 it.copy(
                     currentTries  = newTries,
                     userAnswer    = "",
                     feedbackState = FeedbackState(
-                        isCorrect              = isCorrect,
+                        isCorrect              = false,
                         matchedReferenceAnswer = matchedAnswer,
-                        feedback               = semanticResult.feedback,
-                        semanticScore          = semanticResult.score,
-                        grammar                = grammarResult.summary
+                        feedback               = null,   // 还没有
+                        semanticScore          = null,
+                        grammar                = grammarResult.summary,
+                        isEvaluating           = true    // 新增loading状态
                     )
                 )
+            }
+
+            // 后台跑语义评估
+            try {
+                val semanticResult = semanticChecker.evaluate(userAnswer, referenceTexts)
+                recordRepository.updateEvaluation(
+                    recordId  = recordId.toInt(),
+                    score     = semanticResult.score,
+                    feedback  = semanticResult.feedback,
+                    isCorrect = semanticResult.isCorrect
+                )
+                _uiState.update {
+                    it.copy(
+                        feedbackState = it.feedbackState?.copy(
+                            isCorrect     = semanticResult.isCorrect,
+                            feedback      = semanticResult.feedback,
+                            semanticScore = semanticResult.score,
+                            isEvaluating  = false
+                        )
+                    )
+                }
+            } catch (e: Exception) {
+                // 没网，pending 留在 DB，UI 标记为离线状态
+                _uiState.update {
+                    it.copy(
+                        feedbackState = it.feedbackState?.copy(
+                            isEvaluating    = false,
+                            evaluationOffline = true  // 新增
+                        )
+                    )
+                }
             }
         }
     }
@@ -380,7 +409,9 @@ data class ExerciseUiState(
 data class FeedbackState(
     val isCorrect              : Boolean,
     val matchedReferenceAnswer : ReferenceAnswer? = null,
-    val feedback               : String?,          // Haiku 生成的自然语言反馈
-    val semanticScore          : Double?,          // 0.0 – 1.0
-    val grammar                : String?           // LT / ONNX 语法摘要
+    val feedback               : String?,
+    val semanticScore          : Double?,
+    val grammar                : String?,
+    val isEvaluating           : Boolean = false,      // 新增
+    val evaluationOffline      : Boolean = false       // 新增
 )

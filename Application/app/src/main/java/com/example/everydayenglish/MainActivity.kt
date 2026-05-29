@@ -110,10 +110,13 @@ fun AppNavigation(
             )
         }
         composable(Screen.ProfileScreen.route) {
-            val uiState = profileViewModel.uiState.collectAsState()
+            LifecycleResumeEffect(Unit) {
+                profileViewModel.refresh()
+                onPauseOrDispose {}
+            }
             ProfileScreen(
-                uiState = uiState.value,
-                bubbles = uiState.value.toBubbles(),
+                uiState = profileViewModel.uiState.collectAsState().value,
+                bubbles = profileViewModel.uiState.collectAsState().value.toBubbles(),
                 onBackClick = {
                     navController.popBackStack(
                         Screen.MainScreen.route,
@@ -130,6 +133,10 @@ fun AppNavigation(
                 viewModel = splashViewModel)
         }
         composable(Screen.StatisticScreen.route){
+            LifecycleResumeEffect(Unit) {
+                statisticViewModel.refresh()
+                onPauseOrDispose {}
+            }
             StatisticScreen(
                 uiState = statisticViewModel.uiState.collectAsState().value,
                 onBackClick = {
@@ -143,7 +150,15 @@ fun AppNavigation(
         composable(Screen.SettingScreen.route){
             SettingScreen(
                 uiState = settingViewModel.uiState.collectAsState().value,
-                onCacheClick = {},
+                onCacheClick = {
+                    settingViewModel.clearCache()
+                },
+                onBackClick = {
+                    navController.popBackStack(
+                        Screen.MainScreen.route,
+                        inclusive = false
+                    )
+                },
                 onNotificationChange = {
                     settingViewModel
                         .updateNotificationEnabled(it)
