@@ -177,7 +177,7 @@ class ExerciseViewModel(
             val recordId = recordRepository.insertExerciseRecord(
                 ExerciseRecord(
                     promptId          = exercise.exercise.promptId,
-                    userId            = userId.toIntOrNull() ?: 1,
+                    userId            = userId,
                     referId           = matchedAnswer?.referId ?: -1,
                     userAnswer        = userAnswer,
                     isCorrect         = false,
@@ -241,7 +241,7 @@ class ExerciseViewModel(
             val state    = _uiState.value
             val feedback = state.feedbackState ?: return@launch
             val exercise = state.currentExercise ?: return@launch
-            val tense    = feedback.matchedReferenceAnswer?.tense ?: return@launch
+            val tense    = feedback.matchedReferenceAnswer?.tense ?: "Unknown"
             val now      = System.currentTimeMillis()
 
             // 只有已拿到评估结果才更新 Bandit / sentencesCompleted
@@ -305,15 +305,12 @@ class ExerciseViewModel(
             val state    = _uiState.value
             val nextIndex = state.currentIndex + 1
 
-            val newProgress = state.todayProgress + 1
-            userProfileRepository.updateTodayProgress(newProgress, userId)
 
             if (nextIndex >= state.exerciseQueue.size) {
                 userProfileRepository.incrementStudyDays(userId)
 
                 _uiState.update {
                     it.copy(
-                        todayProgress = newProgress,
                         feedbackState = null,
                         isSessionDone = true,
                         currentExercise = null
@@ -324,7 +321,6 @@ class ExerciseViewModel(
                     it.copy(
                         currentIndex    = nextIndex,
                         currentExercise = it.exerciseQueue[nextIndex],
-                        todayProgress   = newProgress,
                         feedbackState   = null,
                         userAnswer      = ""
                     )

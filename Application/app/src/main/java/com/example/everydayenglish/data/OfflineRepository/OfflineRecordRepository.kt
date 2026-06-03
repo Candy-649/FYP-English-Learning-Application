@@ -26,4 +26,6 @@ class OfflineRecordRepository(
         exerciseRecordDao.getPendingRecords()
     override suspend fun updateEvaluation(recordId: Int, score: Double, feedback: String, isCorrect: Boolean) =
         exerciseRecordDao.updateEvaluation(recordId, score, feedback, isCorrect)
+    override suspend fun getAllByUser(userId: String): List<ExerciseRecord> =
+        exerciseRecordDao.getAllByUser(userId)
 }

@@ -8,7 +8,7 @@ data class ExerciseRecord(
     @PrimaryKey(autoGenerate = true)
     val recordId: Int = 0,
     val promptId: Int,
-    val userId: Int,
+    val userId: String,
     val referId: Int,
     val userAnswer: String,
     val isCorrect: Boolean,

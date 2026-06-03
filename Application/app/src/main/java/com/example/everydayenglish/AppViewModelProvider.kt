@@ -63,13 +63,15 @@ object AppViewModelProvider {
         initializer {
             StatisticViewModel(
                 everydayEnglishApplication().container.userProfileRepository,
-                everydayEnglishApplication().container.attemptRepository
+                everydayEnglishApplication().container.attemptRepository,
+                everydayEnglishApplication().container.appPreferencesRepository
             )
         }
         initializer {
             HistoryViewModel(
                 everydayEnglishApplication().container.recordRepository,
-                everydayEnglishApplication().container.exerciseRepository
+                everydayEnglishApplication().container.exerciseRepository,
+                everydayEnglishApplication().container.appPreferencesRepository
             )
         }
     }

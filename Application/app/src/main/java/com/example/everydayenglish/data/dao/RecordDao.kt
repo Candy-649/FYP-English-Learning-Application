@@ -36,4 +36,6 @@ interface ExerciseRecordDao {
     WHERE recordId = :recordId
 """)
     suspend fun updateEvaluation(recordId: Int, score: Double, feedback: String, isCorrect: Boolean)
+    @Query("SELECT * FROM exercise_records WHERE userId = :userId ORDER BY timestamp DESC")
+    suspend fun getAllByUser(userId: String): List<ExerciseRecord>
 }

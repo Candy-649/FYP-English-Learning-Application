@@ -40,12 +40,16 @@ import com.patrykandpatrick.vico.compose.cartesian.axis.rememberStart
 import com.patrykandpatrick.vico.compose.cartesian.layer.rememberColumnCartesianLayer
 import com.patrykandpatrick.vico.compose.cartesian.layer.rememberLineCartesianLayer
 import com.patrykandpatrick.vico.compose.cartesian.rememberCartesianChart
-import com.patrykandpatrick.vico.compose.cartesian.rememberVicoScrollState
+import com.patrykandpatrick.vico.compose.cartesian.rememberVicoZoomState
+import com.patrykandpatrick.vico.compose.common.component.rememberLineComponent
+import com.patrykandpatrick.vico.compose.common.fill
+import com.patrykandpatrick.vico.core.cartesian.Zoom
 import com.patrykandpatrick.vico.core.cartesian.axis.HorizontalAxis
 import com.patrykandpatrick.vico.core.cartesian.axis.VerticalAxis
 import com.patrykandpatrick.vico.core.cartesian.data.CartesianChartModelProducer
 import com.patrykandpatrick.vico.core.cartesian.data.columnSeries
 import com.patrykandpatrick.vico.core.cartesian.data.lineSeries
+import com.patrykandpatrick.vico.core.cartesian.layer.ColumnCartesianLayer
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -193,43 +197,42 @@ fun StatisticScreen(
 }
 
 @Composable
-fun TenseBarChart(
-    data: Map<String, Int>
-){
+fun TenseBarChart(data: Map<String, Int>) {
     val modelProducer = remember { CartesianChartModelProducer() }
     val labels = data.keys.toList()
+    val color = MaterialTheme.colorScheme.primary
 
     LaunchedEffect(data) {
-        if (data.isEmpty()) return@LaunchedEffect  // 加这一行
+        if (data.isEmpty()) return@LaunchedEffect
         modelProducer.runTransaction {
-            columnSeries {
-                series(
-                    data.values.map { it.toFloat() }
-                )
-            }
+            columnSeries { series(data.values.map { it.toFloat() }) }
         }
     }
 
     CartesianChartHost(
         chart = rememberCartesianChart(
-            rememberColumnCartesianLayer(),
-            startAxis = VerticalAxis.rememberStart(),
-            bottomAxis = HorizontalAxis.rememberBottom(
-                valueFormatter = {_, value, _ ->
-                    labels.getOrNull(value.toInt()) ?: ""
-                },
-                itemPlacer = remember {
-                    HorizontalAxis.ItemPlacer.segmented(
-                        shiftExtremeLines = true
+            rememberColumnCartesianLayer(
+                columnProvider = ColumnCartesianLayer.ColumnProvider.series(
+                    rememberLineComponent(
+                        fill = fill(color = color),
+                        thickness = 40.dp   // ← 限制柱子宽度，调这个值
                     )
+                )
+            ),
+            startAxis = VerticalAxis.rememberStart(
+                valueFormatter = { _, value, _ -> value.toInt().toString() }  // ← 加这个
+            ),
+            bottomAxis = HorizontalAxis.rememberBottom(
+                valueFormatter = { _, value, _ ->
+                    labels.getOrNull(value.toInt()) ?: ""
                 }
             )
         ),
         modelProducer = modelProducer,
-        scrollState = rememberVicoScrollState(),
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(300.dp)
+        zoomState = rememberVicoZoomState(
+            initialZoom = Zoom.fixed(),
+            minZoom = Zoom.min(Zoom.fixed(), Zoom.Content)),
+        modifier = Modifier.fillMaxWidth().height(300.dp)
     )
 }
 
@@ -255,8 +258,17 @@ fun DailyExerciseChart(
         chart = rememberCartesianChart(
             rememberLineCartesianLayer(),
             startAxis = VerticalAxis.rememberStart(),
-            bottomAxis = HorizontalAxis.rememberBottom()
+            bottomAxis = HorizontalAxis.rememberBottom(
+                valueFormatter = { _, value, _ ->
+                    when (val daysAgo = 6 - value.toInt()) {
+                        0 -> "Today"
+                        1 -> "Yesterday"
+                        else -> "${daysAgo}d ago"
+                    }
+                }
+            )
         ),
+
         modelProducer = modelProducer,
         modifier = Modifier
             .fillMaxWidth()

@@ -1,7 +1,9 @@
 package com.example.everydayenglish.viewmodel
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.everydayenglish.data.Repository.AppPreferencesRepository
 import com.example.everydayenglish.data.Repository.AttemptRepository
 import com.example.everydayenglish.data.Repository.ExerciseRepository
 import com.example.everydayenglish.data.Repository.RecordRepository
@@ -15,19 +17,18 @@ import kotlinx.coroutines.launch
 import java.util.Calendar
 import java.util.concurrent.TimeUnit
 
-private const val DEFAULT_USER_ID = "1"
 
-/**
- * Estimated average minutes spent per exercise.
- * Replace with real session-duration tracking once available.
- */
+
 private const val MINUTES_PER_EXERCISE = 2
 
 class StatisticViewModel(
     private val userProfileRepository: UserProfileRepository,
-    private val attemptRepository: AttemptRepository  // 换掉 recordRepository 和 exerciseRepository
+    private val attemptRepository: AttemptRepository,
+    private val appPreferencesRepository: AppPreferencesRepository
 ) : ViewModel() {
 
+    private val userId: String
+        get() = appPreferencesRepository.getUserId()
     private val _uiState = MutableStateFlow(StatisticUiState())
     val uiState = _uiState.asStateFlow()
 
@@ -41,12 +42,13 @@ class StatisticViewModel(
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, errorMessage = null) }
             try {
-                val profileDeferred = async { userProfileRepository.getUserProfile(DEFAULT_USER_ID) }
-                val attemptsDeferred = async { attemptRepository.getAllByUser(DEFAULT_USER_ID) }
+                val profileDeferred = async { userProfileRepository.getUserProfile(userId) }
+                val attemptsDeferred = async { attemptRepository.getAllByUser(userId) }
+
 
                 val profile = profileDeferred.await()
                 val attempts = attemptsDeferred.await()
-
+                Log.d("StatisticVM", "QuestionAttempt count: ${attempts.size}") // 加这一行
                 val todayStudy = profile?.todayProgress ?: 0
                 val studyDuration = (profile?.totalSentencesCompleted ?: 0) * MINUTES_PER_EXERCISE
 

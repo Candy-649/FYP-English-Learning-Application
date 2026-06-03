@@ -2,6 +2,7 @@ package com.example.everydayenglish.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.everydayenglish.data.Repository.AppPreferencesRepository
 import com.example.everydayenglish.data.Repository.ExerciseRepository
 import com.example.everydayenglish.data.Repository.RecordRepository
 import com.example.everydayenglish.data.entity.ExerciseRecord
@@ -34,8 +35,11 @@ data class HistoryUiState(
 
 class HistoryViewModel(
     private val recordRepository  : RecordRepository,
-    private val exerciseRepository: ExerciseRepository
+    private val exerciseRepository: ExerciseRepository,
+    private val appPreferencesRepository: AppPreferencesRepository
 ) : ViewModel() {
+    private val userId: String
+        get() = appPreferencesRepository.getUserId()
 
     private val _uiState = MutableStateFlow(HistoryUiState())
     val uiState = _uiState.asStateFlow()
@@ -56,7 +60,7 @@ class HistoryViewModel(
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, errorMessage = null) }
             try {
-                val allRecords = recordRepository.getAllExerciseRecords()  // 已按 timestamp DESC
+                val allRecords = recordRepository.getAllByUser(userId)
 
                 // 按 promptId 分组，保持首次出现顺序（= 最新 record 在前）
                 val grouped = allRecords.groupBy { it.promptId }
