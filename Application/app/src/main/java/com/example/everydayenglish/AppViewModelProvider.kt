@@ -6,6 +6,7 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.example.everydayenglish.data.Repository.AttemptRepository
 import com.example.everydayenglish.viewmodel.ExerciseViewModel
+import com.example.everydayenglish.viewmodel.HistoryViewModel
 import com.example.everydayenglish.viewmodel.MainViewModel
 import com.example.everydayenglish.viewmodel.ProfileViewModel
 import com.example.everydayenglish.viewmodel.SettingViewModel
@@ -63,6 +64,12 @@ object AppViewModelProvider {
             StatisticViewModel(
                 everydayEnglishApplication().container.userProfileRepository,
                 everydayEnglishApplication().container.attemptRepository
+            )
+        }
+        initializer {
+            HistoryViewModel(
+                everydayEnglishApplication().container.recordRepository,
+                everydayEnglishApplication().container.exerciseRepository
             )
         }
     }

@@ -28,7 +28,7 @@ datastorePreferencesCore = "1.1.1"
 datastorePreferences = "1.1.1"
 material3 = "1.4.0"
 foundation = "1.11.1"
-onnx = "1.17.3"
+onnx = "1.21.0"
 okhttp = "4.12.0"
 
 [libraries]

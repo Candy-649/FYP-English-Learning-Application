@@ -237,34 +237,96 @@ fun ExerciseScreen(
 @Composable
 private fun FeedbackDialog(
     feedback: FeedbackState,
-    onNext: () -> Unit,      // 答对了/放弃 → finishCurrentQuestion
-    onRetry: () -> Unit,     // 答错了重试 → 关闭 dialog 继续答
-    onGiveUp: () -> Unit     // 答错了放弃 → finishCurrentQuestion(gaveUp=true)
+    onNext  : () -> Unit,
+    onRetry : () -> Unit,
+    onGiveUp: () -> Unit
 ) {
     AlertDialog(
         onDismissRequest = {},
-        title = { Text(if (feedback.isCorrect) "Correct! 🎉" else "Incorrect") },
+        title = {
+            Text(
+                when {
+                    feedback.evaluationOffline  -> "Pending Evaluation ⏳"
+                    feedback.isEvaluating       -> "Evaluating…"
+                    feedback.isCorrect == true  -> "Correct! 🎉"
+                    feedback.isCorrect == false -> "Incorrect"
+                    else                        -> "Submitted"
+                }
+            )
+        },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                feedback.matchedReferenceAnswer?.reference?.let {
-                    Text("Reference: $it", style = MaterialTheme.typography.bodyMedium)
+
+                // Reference — 始终显示
+                feedback.matchedReferenceAnswer?.reference?.let { ref ->
+                    Text(
+                        text  = "Reference: $ref",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
-                feedback.feedback?.let { Text(it) }
-                feedback.grammar?.let { Text("Grammar: $it", style = MaterialTheme.typography.bodySmall) }
-                feedback.semanticScore?.let {
-                    Text("Similarity: ${"%.0f".format(it * 100)}%", style = MaterialTheme.typography.bodySmall)
+
+                when {
+                    feedback.evaluationOffline -> {
+                        Text(
+                            text  = "AI evaluation will resume when you're back online.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.outline
+                        )
+                    }
+                    feedback.isEvaluating -> {
+                        Row(
+                            verticalAlignment     = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            CircularProgressIndicator(
+                                modifier    = Modifier.size(14.dp),
+                                strokeWidth = 2.dp
+                            )
+                            Text(
+                                text  = "Evaluating your answer…",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.outline
+                            )
+                        }
+                    }
+                    else -> {
+                        // 有结果了才显示 AI feedback 和 semantic score
+                        feedback.feedback?.let { Text(it) }
+                        feedback.semanticScore?.let { score ->
+                            Text(
+                                text  = "Similarity: ${"%.0f".format(score * 100)}%",
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                        }
+                    }
+                }
+
+                // Grammar — 始终显示（SmartGrammarChecker 离线也能跑）
+                feedback.grammar?.let {
+                    Text(
+                        text  = "Grammar: $it",
+                        style = MaterialTheme.typography.bodySmall
+                    )
                 }
             }
         },
         confirmButton = {
-            if (feedback.isCorrect) {
-                TextButton(onClick = onNext) { Text("Next") }
-            } else {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    TextButton(onClick = onGiveUp) {
-                        Text("Give Up", color = MaterialTheme.colorScheme.error)
+            when {
+                // 离线 or 还在评估：只给 Next，不问对错
+                feedback.evaluationOffline || feedback.isEvaluating -> {
+                    TextButton(onClick = onNext) { Text("Next") }
+                }
+                feedback.isCorrect == true -> {
+                    TextButton(onClick = onNext) { Text("Next") }
+                }
+                else -> {
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        TextButton(onClick = onGiveUp) {
+                            Text("Give Up", color = MaterialTheme.colorScheme.error)
+                        }
+                        TextButton(onClick = onRetry) { Text("Retry") }
                     }
-                    TextButton(onClick = onRetry) { Text("Retry") }
                 }
             }
         }
@@ -566,52 +628,6 @@ private fun ExerciseContent(
             modifier = Modifier.fillMaxWidth()
         )
     }
-}
-
-@Composable
-private fun FeedbackDialog(
-    feedback: FeedbackState,
-    onNext: () -> Unit
-) {
-    AlertDialog(
-        onDismissRequest = { /* force user to tap Next */ },
-        title = {
-            Text(if (feedback.isCorrect) "Correct! 🎉" else "Incorrect")
-        },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-
-                feedback.matchedReferenceAnswer?.reference?.let { ref ->
-                    Text(
-                        text  = "Reference: $ref",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-
-                feedback.feedback?.let { Text(it) }
-
-                feedback.grammar?.let {
-                    Text(
-                        text  = "Grammar: $it",
-                        style = MaterialTheme.typography.bodySmall
-                    )
-                }
-
-                feedback.semanticScore?.let {
-                    Text(
-                        text  = "Similarity: ${"%.0f".format(it * 100)}%",
-                        style = MaterialTheme.typography.bodySmall
-                    )
-                }
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = onNext) {
-                Text("Next")
-            }
-        }
-    )
 }
 
 @Composable

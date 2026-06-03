@@ -42,6 +42,7 @@ fun MainScreen(
     onProfileClick: () -> Unit,
     onStudyClick: () -> Unit,
     onStatisticClick: () -> Unit,
+    onHistoryClick: () -> Unit,
     onSettingClick: () -> Unit
 ){
     Scaffold(
@@ -114,7 +115,7 @@ fun MainScreen(
                     icon = Icons.Default.History,
                     text = "Study History"
                 ) {
-                    /* History Screen */
+                    onHistoryClick()
                 }
                 JumpCard(
                     icon = Icons.Default.Settings,
@@ -137,6 +138,7 @@ fun MainScreenPreview(){
         onProfileClick = {},
         onStudyClick = {},
         onStatisticClick = {},
-        onSettingClick = {}
+        onSettingClick = {},
+        onHistoryClick = {}
     )
 }

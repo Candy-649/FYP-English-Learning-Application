@@ -192,7 +192,7 @@ class ExerciseViewModel(
                     currentTries  = newTries,
                     userAnswer    = "",
                     feedbackState = FeedbackState(
-                        isCorrect              = false,
+                        isCorrect              = null,
                         matchedReferenceAnswer = matchedAnswer,
                         feedback               = null,   // 还没有
                         semanticScore          = null,
@@ -242,30 +242,32 @@ class ExerciseViewModel(
             val feedback = state.feedbackState ?: return@launch
             val exercise = state.currentExercise ?: return@launch
             val tense    = feedback.matchedReferenceAnswer?.tense ?: return@launch
-
-            val solved   = !gaveUp && feedback.isCorrect
-            val accuracy = if (solved) 1.0 / state.currentTries else 0.0
             val now      = System.currentTimeMillis()
 
-            // 保存到 QuestionAttempt
-            attemptRepository.insert(
-                QuestionAttempt(
-                    promptId = exercise.exercise.promptId,
-                    userId = userId,
-                    tense = tense,
-                    totalTries = state.currentTries,
-                    solved = solved,
-                    accuracy = accuracy
+            // 只有已拿到评估结果才更新 Bandit / sentencesCompleted
+            if (!feedback.evaluationOffline && feedback.isCorrect != null) {
+                val solved   = !gaveUp && feedback.isCorrect
+                val accuracy = if (solved) 1.0 / state.currentTries else 0.0
+                attemptRepository.insert(
+                    QuestionAttempt(
+                        promptId   = exercise.exercise.promptId,
+                        userId     = userId,
+                        tense      = tense,
+                        totalTries = state.currentTries,
+                        solved     = solved,
+                        accuracy   = accuracy
+                    )
                 )
-            )  // 需要通过 repository 暴露，见下方
-            // 更新老虎机
-            banditRepository.updateFromAttempt(tense, accuracy, now)
+                banditRepository.updateFromAttempt(tense, accuracy, now)
+                if (solved) userProfileRepository.incrementSentencesCompleted(userId)
+            }
+            // evaluationOffline / isEvaluating 中用户跳走：Bandit 跳过，进度照常推进
 
-            if (solved) userProfileRepository.incrementSentencesCompleted(userId)
-
+            val solved      = !gaveUp && feedback.isCorrect == true && !feedback.evaluationOffline
             val newProgress = state.todayProgress + 1
             val newAnswered = state.totalAnswered + 1
             val newCorrect  = if (solved) state.correctCount + 1 else state.correctCount
+
             userProfileRepository.updateTodayProgress(newProgress, userId)
 
             if (newAnswered >= state.dailyGoal) {
@@ -407,7 +409,7 @@ data class ExerciseUiState(
 )
 
 data class FeedbackState(
-    val isCorrect              : Boolean,
+    val isCorrect              : Boolean?,
     val matchedReferenceAnswer : ReferenceAnswer? = null,
     val feedback               : String?,
     val semanticScore          : Double?,

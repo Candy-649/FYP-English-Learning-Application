@@ -30,6 +30,8 @@ import com.example.everydayenglish.viewmodel.toBubbles
 import androidx.core.net.toUri
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.lifecycle.compose.LifecycleResumeEffect
+import com.example.everydayenglish.ui.HistoryScreen
+import com.example.everydayenglish.viewmodel.HistoryViewModel
 
 sealed class Screen(val route: String){
     object MainScreen: Screen("main")
@@ -38,6 +40,7 @@ sealed class Screen(val route: String){
     object SettingScreen: Screen("setting")
     object ProfileScreen: Screen("profile")
     object SplashScreen: Screen("splash")
+    object HistoryScreen: Screen("history")
 
 }
 
@@ -68,6 +71,7 @@ fun AppNavigation(
     val settingViewModel: SettingViewModel = viewModel(factory = AppViewModelProvider.Factory)
     val mainViewModel: MainViewModel = viewModel(factory = AppViewModelProvider.Factory)
     val statisticViewModel: StatisticViewModel = viewModel(factory = AppViewModelProvider.Factory)
+    val historyViewModel: HistoryViewModel = viewModel(factory = AppViewModelProvider.Factory)
 
 
     NavHost(
@@ -89,6 +93,9 @@ fun AppNavigation(
                 },
                 onStatisticClick = {
                     navController.navigate(Screen.StatisticScreen.route)
+                },
+                onHistoryClick = {
+                    navController.navigate(Screen.HistoryScreen.route)
                 },
                 onSettingClick = {
                     navController.navigate(Screen.SettingScreen.route)
@@ -176,6 +183,17 @@ fun AppNavigation(
                     settingViewModel
                         .updateDailyGoal(it)
                 }
+            )
+        }
+        composable(Screen.HistoryScreen.route) {
+            LifecycleResumeEffect(Unit) {
+                historyViewModel.refresh()
+                onPauseOrDispose {}
+            }
+            HistoryScreen(
+                uiState     = historyViewModel.uiState.collectAsState().value,
+                onBackClick = { navController.popBackStack(Screen.MainScreen.route, inclusive = false) },
+                onCardClick = { historyViewModel.toggleExpand(it) }
             )
         }
     }
