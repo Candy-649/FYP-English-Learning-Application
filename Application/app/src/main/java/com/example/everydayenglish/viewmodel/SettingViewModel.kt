@@ -25,6 +25,9 @@ class SettingViewModel(
             try {
                 val dailyGoal    = appPreferencesRepository.getDailyGoal()
                 val darkMode     = appPreferencesRepository.getDarkMode()
+                val darkModeOpt  = runCatching {
+                    DarkModeOption.valueOf(appPreferencesRepository.getDarkModeOption())
+                }.getOrDefault(DarkModeOption.AUTO)
                 val notification = appPreferencesRepository.getNotification()
 
                 // sentenceCount 来自 UserProfile
@@ -40,6 +43,7 @@ class SettingViewModel(
                     it.copy(
                         dailyGoal           = dailyGoal,
                         darkModeEnabled     = darkMode,
+                        darkModeOption = darkModeOpt,
                         notificationEnabled = notification,
                         recentSentenceCount = sentenceCount,
                         cacheSizeText       = cacheText
@@ -49,37 +53,45 @@ class SettingViewModel(
         }
     }
 
-    fun updateDailyGoal(goal: Int) =
+    fun updateDailyGoal(goal: Int) {
         _uiState.update { it.copy(dailyGoal = goal) }
-
-    fun updateDarkMode(enabled: Boolean) =
-        _uiState.update { it.copy(darkModeEnabled = enabled) }
-
-    fun updateNotificationEnabled(enabled: Boolean) =
-        _uiState.update { it.copy(notificationEnabled = enabled) }
-
-    fun updateSentenceCount(count: Int) =
-        _uiState.update { it.copy(recentSentenceCount = count) }
-
-    fun saveSettings() {
         viewModelScope.launch {
-            try {
-                val state  = _uiState.value
-                val userId = appPreferencesRepository.getUserId()
-
-                // 应用全局的设置 → DataStore
-                appPreferencesRepository.saveDailyGoal(state.dailyGoal)
-                appPreferencesRepository.saveDarkMode(state.darkModeEnabled)
-                appPreferencesRepository.saveNotification(state.notificationEnabled)
-
-                // 用户专属的设置 → UserProfile (Room)
-                userProfileRepository.updateSentenceCount(state.recentSentenceCount, userId)
-
-            } catch (_: Exception) { }
+            appPreferencesRepository.saveDailyGoal(goal)
         }
     }
-    fun updateDarkModeOption(option: DarkModeOption) =
+
+
+    fun updateDarkMode(enabled: Boolean) {
+        _uiState.update { it.copy(darkModeEnabled = enabled) }
+        viewModelScope.launch {
+            appPreferencesRepository.saveDarkMode(enabled)
+        }
+    }
+
+    fun updateDarkModeOption(option: DarkModeOption) {
         _uiState.update { it.copy(darkModeOption = option) }
+        viewModelScope.launch {
+            appPreferencesRepository.saveDarkModeOption(option.toString())
+        }
+    }
+
+
+
+    fun updateNotificationEnabled(enabled: Boolean) {
+        _uiState.update { it.copy(notificationEnabled = enabled) }
+        viewModelScope.launch {
+            appPreferencesRepository.saveNotification(enabled)
+        }
+    }
+
+
+    fun updateSentenceCount(count: Int) {
+        _uiState.update { it.copy(recentSentenceCount = count) }
+        viewModelScope.launch {
+            val userId = appPreferencesRepository.getUserId()
+            userProfileRepository.updateSentenceCount(count, userId)
+        }
+    }
 
     fun clearCache() {
         viewModelScope.launch {

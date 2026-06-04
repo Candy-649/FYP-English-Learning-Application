@@ -107,6 +107,14 @@ class ProfileViewModel(
         }
     }
 
+    fun updateAvatar(uri: Uri) {
+        _uiState.update { it.copy(userAvatar = uri) }
+    }
+
+    fun updateBackground(uri: Uri) {
+        _uiState.update { it.copy(profileBackground = uri) }
+    }
+
     fun saveProfile() {
 
         viewModelScope.launch {

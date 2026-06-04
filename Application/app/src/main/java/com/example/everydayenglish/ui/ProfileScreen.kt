@@ -3,7 +3,10 @@
 
 package com.example.everydayenglish.ui
 
+import android.content.Context
 import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
@@ -32,6 +35,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
@@ -47,6 +51,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -56,6 +61,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.dimensionResource
 import androidx.compose.ui.text.TextStyle
@@ -73,6 +79,28 @@ import com.example.everydayenglish.viewmodel.toBubbles
 import kotlin.math.cos
 import kotlin.math.sin
 import androidx.core.net.toUri
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.io.File
+
+private suspend fun copyUriToInternalStorage(
+    context: Context,
+    sourceUri: Uri,
+    fileName: String
+): Uri? = withContext(Dispatchers.IO) {
+    try {
+        val inputStream =
+            context.contentResolver.openInputStream(sourceUri) ?: return@withContext null
+        val file = File(context.filesDir, fileName)
+        file.outputStream().use { out ->
+            inputStream.use { it.copyTo(out) }
+        }
+        Uri.fromFile(file)
+    } catch (_: Exception) {
+        null
+    }
+}
 
 @Composable
 fun ProfileScreen(
@@ -81,11 +109,38 @@ fun ProfileScreen(
     onBackClick: () -> Unit,
     onUserNameChange: (String) -> Unit = {},
     onBioChange: (String) -> Unit = {},
-    onSaveProfile: () -> Unit = {}
+    onSaveProfile: () -> Unit = {},
+    onAvatarChange: (Uri) -> Unit = {},
+    onBackgroundChange: (Uri) -> Unit = {}
 ) {
     var isEditing by remember { mutableStateOf(false) }
     var editName  by remember { mutableStateOf("") }
     var editBio   by remember { mutableStateOf("") }
+
+    val context = LocalContext.current
+    val scope   = rememberCoroutineScope()
+    //photo selector
+    val avatarLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.GetContent()
+    ) { uri ->
+        uri?.let {
+            scope.launch {
+                val saved = copyUriToInternalStorage(context, it, "user_avatar.jpg")
+                saved?.let { newUri -> onAvatarChange(newUri) }
+            }
+        }
+    }
+
+    val backgroundLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.GetContent()
+    ) { uri ->
+        uri?.let {
+            scope.launch {
+                val saved = copyUriToInternalStorage(context, it, "profile_background.jpg")
+                saved?.let { newUri -> onBackgroundChange(newUri) }
+            }
+        }
+    }
 
     val curvedShape = GenericShape { size, _ ->
         moveTo(0f, 120f)
@@ -156,12 +211,39 @@ fun ProfileScreen(
                 .fillMaxSize()
                 .padding(innerPadding)
         ) {
-            AsyncImage(
-                model = uiState.profileBackground,
-                contentDescription = null,
-                modifier = Modifier.fillMaxSize(),
-                contentScale = ContentScale.Crop
-            )
+            Box(modifier = Modifier.fillMaxSize()) {
+                AsyncImage(
+                    model = uiState.profileBackground,
+                    contentDescription = null,
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop
+                )
+                if (isEditing) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .fillMaxHeight(0.3f)
+                            .background(Color.Black.copy(alpha = 0.35f))
+                            .clickable { backgroundLauncher.launch("image/*") },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Icon(
+                                imageVector        = Icons.Default.PhotoCamera,
+                                contentDescription = "Change background",
+                                tint               = Color.White,
+                                modifier           = Modifier.size(32.dp)
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text  = "Change background",
+                                color = Color.White,
+                                style = MaterialTheme.typography.labelMedium
+                            )
+                        }
+                    }
+                }
+            }
 
             Box(
                 modifier = Modifier
@@ -175,9 +257,11 @@ fun ProfileScreen(
                         .fillMaxHeight(),
                     shape = curvedShape
                 ) {
-                    Spacer(modifier = Modifier.height(50.dp).fillMaxWidth())
+                    Spacer(modifier = Modifier
+                        .height(50.dp)
+                        .fillMaxWidth())
 
-                    // ── 用户名 ────────────────────────────────────
+                    // user name edit
                     if (isEditing) {
                         InlineEditField(
                             value     = editName,
@@ -197,7 +281,7 @@ fun ProfileScreen(
 
                     Spacer(modifier = Modifier.height(6.dp))
 
-                    // ── 签名 ──────────────────────────────────────
+                    // Bio edit
                     if (isEditing) {
                         InlineEditField(
                             value     = editBio,
@@ -218,22 +302,45 @@ fun ProfileScreen(
                     BubbleCloud(bubbles = bubbles)
                 }
 
-                AsyncImage(
-                    model = uiState.userAvatar,
-                    contentDescription = "Avatar",
+                Box(
                     modifier = Modifier
                         .size(100.dp)
                         .align(Alignment.TopCenter)
                         .offset(y = (-50).dp)
-                        .clip(CircleShape)
-                        .background(Color.White)
-                        .border(
-                            3.dp,
-                            color = MaterialTheme.colorScheme.surfaceContainer,
-                            shape = CircleShape
-                        ),
-                    contentScale = ContentScale.Crop
-                )
+                ) {
+                    AsyncImage(
+                        model              = uiState.userAvatar,
+                        contentDescription = "Avatar",
+                        modifier           = Modifier
+                            .fillMaxSize()
+                            .clip(CircleShape)
+                            .background(Color.White)
+                            .border(
+                                3.dp,
+                                color = MaterialTheme.colorScheme.surfaceContainer,
+                                shape = CircleShape
+                            ),
+                        contentScale = ContentScale.Crop
+                    )
+                    //avatar edit
+                    if (isEditing) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .clip(CircleShape)
+                                .background(Color.Black.copy(alpha = 0.45f))
+                                .clickable { avatarLauncher.launch("image/*") },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector        = Icons.Default.PhotoCamera,
+                                contentDescription = "Change avatar",
+                                tint               = Color.White,
+                                modifier           = Modifier.size(28.dp)
+                            )
+                        }
+                    }
+                }
             }
         }
     }
@@ -409,15 +516,15 @@ fun BubbleCloud(bubbles: List<ProfileBubble>) {
     BoxWithConstraints(
         modifier = Modifier
             .fillMaxSize()
-        .clickable(
-            indication = null,
-            interactionSource = remember { MutableInteractionSource() }
-        ){
-            selectedBubble = null
-        }
+            .clickable(
+                indication = null,
+                interactionSource = remember { MutableInteractionSource() }
+            ) {
+                selectedBubble = null
+            }
     ) {
 
-        // --- 纯计算，remember 缓存 ---
+        //计算
         val sorted = remember(bubbles) { bubbles.sortedByDescending { it.value } }
         val sizes = remember(sorted) { sorted.map { it.size } }
 
@@ -461,7 +568,7 @@ fun BubbleCloud(bubbles: List<ProfileBubble>) {
             }
         }
 
-        // --- 渲染，动画在 key 块内 ---
+        //给数值
         sorted.forEachIndexed { index, bubble ->
             key(bubble.id) {
                 val selected = selectedBubble == bubble
