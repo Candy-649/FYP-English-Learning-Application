@@ -1,5 +1,6 @@
 package com.example.everydayenglish.viewmodel
 
+import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.everydayenglish.data.Repository.AppPreferencesRepository
@@ -46,14 +47,12 @@ class MainViewModel(
 
                     it.copy(
 
-                        userName =
-                            profile.userName,
-
                         todayProgress =
                             profile.todayProgress,
 
                         dailyGoal =
-                            profile.dailyGoal
+                            profile.dailyGoal,
+                        userAvatar = profile.avatarUri,
                     )
                 }
             }
@@ -66,9 +65,8 @@ class MainViewModel(
 
 data class MainUiState(
 
-    val userName: String = "",
-
     val todayProgress: Int = 0,
 
-    val dailyGoal: Int = 10
+    val dailyGoal: Int = 10,
+    val userAvatar: Uri = Uri.EMPTY
 )

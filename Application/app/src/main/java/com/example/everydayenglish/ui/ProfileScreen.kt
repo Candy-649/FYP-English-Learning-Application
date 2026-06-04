@@ -79,6 +79,8 @@ import com.example.everydayenglish.viewmodel.toBubbles
 import kotlin.math.cos
 import kotlin.math.sin
 import androidx.core.net.toUri
+import coil.request.CachePolicy
+import coil.request.ImageRequest
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -125,8 +127,15 @@ fun ProfileScreen(
     ) { uri ->
         uri?.let {
             scope.launch {
-                val saved = copyUriToInternalStorage(context, it, "user_avatar.jpg")
-                saved?.let { newUri -> onAvatarChange(newUri) }
+                val fileName = "user_avatar_${System.currentTimeMillis()}.jpg"
+                val saved = copyUriToInternalStorage(context, it, fileName)
+                saved?.let { newUri ->
+                    val oldUri = uiState.userAvatar
+                    if (oldUri.scheme == "file") {
+                        oldUri.path?.let { path -> File(path).delete()}
+                    }
+                    onAvatarChange(newUri)
+                }
             }
         }
     }
@@ -136,8 +145,15 @@ fun ProfileScreen(
     ) { uri ->
         uri?.let {
             scope.launch {
-                val saved = copyUriToInternalStorage(context, it, "profile_background.jpg")
-                saved?.let { newUri -> onBackgroundChange(newUri) }
+                val fileName = "profile_background_${System.currentTimeMillis()}.jpg"
+                val saved = copyUriToInternalStorage(context, it, fileName)
+                saved?.let { newUri ->
+                    val oldUri = uiState.profileBackground
+                    if (oldUri.scheme == "file") {
+                        oldUri.path?.let { path -> File(path).delete() }
+                    }
+                    onBackgroundChange(newUri)
+                }
             }
         }
     }
