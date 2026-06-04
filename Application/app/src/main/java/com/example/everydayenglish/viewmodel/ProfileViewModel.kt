@@ -60,7 +60,8 @@ class ProfileViewModel(
 
                             bio =
                                 profile.bio,
-
+                            userAvatar = profile.avatarUri,
+                            profileBackground = profile.profileBackgroundUri,
                             totalStudyDays =
                                 profile.totalStudyDays,
 
@@ -130,6 +131,8 @@ class ProfileViewModel(
 
                             bio =
                                 state.bio,
+                            avatarUri = state.userAvatar,
+                            profileBackgroundUri = state.profileBackground,
 
                             totalStudyDays =
                                 state.totalStudyDays,

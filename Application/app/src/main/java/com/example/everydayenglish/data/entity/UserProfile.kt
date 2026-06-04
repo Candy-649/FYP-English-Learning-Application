@@ -1,5 +1,6 @@
 package com.example.everydayenglish.data.entity
 
+import android.net.Uri
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 
@@ -7,10 +8,10 @@ import androidx.room.PrimaryKey
 data class UserProfile(
     @PrimaryKey
     val userId: String,                        // single user app, default to 1
-    val userName: String = "",
-    val avatarUri: String = "",                 // Uri stored as String
+    val userName: String,
+    val avatarUri: Uri,                 // Uri stored as String
     val bio: String = "About me",
-    val profileBackgroundUri: String = "",      // Uri stored as String
+    val profileBackgroundUri: Uri,      // Uri stored as String
     val totalStudyDays: Int = 0,
     val totalSentencesCompleted: Int = 0,
     val currentStreak: Int = 0,

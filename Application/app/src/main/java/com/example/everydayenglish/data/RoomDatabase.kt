@@ -2,6 +2,7 @@ package com.example.everydayenglish.data
 
 import androidx.room.Database
 import androidx.room.RoomDatabase
+import androidx.room.TypeConverters
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.example.everydayenglish.data.dao.ExerciseDao
@@ -14,6 +15,7 @@ import com.example.everydayenglish.data.entity.ExerciseRecord
 import com.example.everydayenglish.data.entity.QuestionAttempt
 import com.example.everydayenglish.data.entity.ReferenceAnswer
 import com.example.everydayenglish.data.entity.UserProfile
+import com.example.everydayenglish.data.typeConverter.UriTypeConverter
 
 @Database(
     entities = [
@@ -26,6 +28,7 @@ import com.example.everydayenglish.data.entity.UserProfile
     version = 1,
     exportSchema = false
 )
+@TypeConverters(UriTypeConverter::class)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun exerciseDao(): ExerciseDao
     abstract fun recordDao(): ExerciseRecordDao

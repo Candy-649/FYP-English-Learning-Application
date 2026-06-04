@@ -14,6 +14,7 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
@@ -25,11 +26,15 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.GenericShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -48,10 +53,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.dimensionResource
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -63,108 +72,152 @@ import com.example.everydayenglish.viewmodel.ProfileUiState
 import com.example.everydayenglish.viewmodel.toBubbles
 import kotlin.math.cos
 import kotlin.math.sin
+import androidx.core.net.toUri
 
 @Composable
 fun ProfileScreen(
     uiState: ProfileUiState,
     bubbles: List<ProfileBubble>,
-    onBackClick: () -> Unit
-){
+    onBackClick: () -> Unit,
+    onUserNameChange: (String) -> Unit = {},
+    onBioChange: (String) -> Unit = {},
+    onSaveProfile: () -> Unit = {}
+) {
+    var isEditing by remember { mutableStateOf(false) }
+    var editName  by remember { mutableStateOf("") }
+    var editBio   by remember { mutableStateOf("") }
+
     val curvedShape = GenericShape { size, _ ->
         moveTo(0f, 120f)
-
-        quadraticTo(
-            size.width / 2,
-            -80f,
-            size.width,
-            120f
-        )
-
+        quadraticTo(size.width / 2, -80f, size.width, 120f)
         lineTo(size.width, size.height)
         lineTo(0f, size.height)
-
         close()
     }
+
     Scaffold(
         topBar = {
             TopAppBar(
                 title = {
                     Text(
-                        "Statistic",
-                        modifier = Modifier
-                            .fillMaxWidth(),
+                        text = if (isEditing) "Edit Profile" else "Profile",
+                        modifier = Modifier.fillMaxWidth(),
                         textAlign = TextAlign.Center
                     )
                 },
                 navigationIcon = {
-                    IconButton(
-                        onClick = onBackClick
-                    ) {
+                    IconButton(onClick = {
+                        if (isEditing) isEditing = false else onBackClick()
+                    }) {
                         Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back",
-                            modifier = Modifier
-                                .padding(dimensionResource(R.dimen.padding_small))
+                            imageVector = if (isEditing) Icons.Default.Close
+                            else Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = if (isEditing) "Cancel" else "Back",
+                            modifier = Modifier.padding(dimensionResource(R.dimen.padding_small))
                         )
                     }
                 },
                 actions = {
-                    Icon(
-                        imageVector = Icons.Default.MoreVert,
-                        contentDescription = "More",
-                        modifier = Modifier.padding(dimensionResource(R.dimen.padding_small))
-                    )
+                    if (isEditing) {
+                        IconButton(onClick = {
+                            onUserNameChange(editName.trim())
+                            onBioChange(editBio.trim())
+                            onSaveProfile()
+                            isEditing = false
+                        }) {
+                            Icon(
+                                imageVector = Icons.Default.Check,
+                                contentDescription = "Save",
+                                modifier = Modifier.padding(dimensionResource(R.dimen.padding_small))
+                            )
+                        }
+                    } else {
+                        IconButton(onClick = {
+                            editName = uiState.userName
+                            editBio  = uiState.bio
+                            isEditing = true
+                        }) {
+                            Icon(
+                                imageVector = Icons.Default.Edit,
+                                contentDescription = "Edit",
+                                modifier = Modifier.padding(dimensionResource(R.dimen.padding_small))
+                            )
+                        }
+                    }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.primaryContainer
                 )
             )
         }
-    ){
+    ) { innerPadding ->
         Box(
-            modifier = Modifier.fillMaxSize()
-        ){
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+        ) {
             AsyncImage(
                 model = uiState.profileBackground,
                 contentDescription = null,
                 modifier = Modifier.fillMaxSize(),
                 contentScale = ContentScale.Crop
             )
+
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .fillMaxHeight(0.75f)
                     .align(Alignment.BottomCenter)
-            ){
+            ) {
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
                         .fillMaxHeight(),
                     shape = curvedShape
                 ) {
-                    Spacer(modifier = Modifier
-                        .height(50.dp)
-                        .fillMaxWidth()
-                    )
-                    Text(
-                        uiState.userName,
-                        style = MaterialTheme.typography.displaySmall,
-                        modifier = Modifier
-                            .fillMaxWidth(),
-                        textAlign = TextAlign.Center
-                    )
-                    Text(
-                        uiState.bio,
-                        style = MaterialTheme.typography.titleMedium,
-                        modifier = Modifier
-                            .fillMaxWidth(),
-                        textAlign = TextAlign.Center
-                    )
-                    BubbleCloud(
-                        bubbles = bubbles
-                    )
+                    Spacer(modifier = Modifier.height(50.dp).fillMaxWidth())
 
+                    // ── 用户名 ────────────────────────────────────
+                    if (isEditing) {
+                        InlineEditField(
+                            value     = editName,
+                            onValueChange = { editName = it },
+                            textStyle = MaterialTheme.typography.displaySmall,
+                            hint      = "Username",
+                            singleLine = true
+                        )
+                    } else {
+                        Text(
+                            text      = uiState.userName,
+                            style     = MaterialTheme.typography.displaySmall,
+                            modifier  = Modifier.fillMaxWidth(),
+                            textAlign = TextAlign.Center
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(6.dp))
+
+                    // ── 签名 ──────────────────────────────────────
+                    if (isEditing) {
+                        InlineEditField(
+                            value     = editBio,
+                            onValueChange = { editBio = it },
+                            textStyle = MaterialTheme.typography.titleMedium,
+                            hint      = "Add a bio...",
+                            singleLine = false
+                        )
+                    } else {
+                        Text(
+                            text      = uiState.bio,
+                            style     = MaterialTheme.typography.titleMedium,
+                            modifier  = Modifier.fillMaxWidth(),
+                            textAlign = TextAlign.Center
+                        )
+                    }
+
+                    BubbleCloud(bubbles = bubbles)
                 }
+
                 AsyncImage(
                     model = uiState.userAvatar,
                     contentDescription = "Avatar",
@@ -177,15 +230,95 @@ fun ProfileScreen(
                         .border(
                             3.dp,
                             color = MaterialTheme.colorScheme.surfaceContainer,
-                            CircleShape
+                            shape = CircleShape
                         ),
                     contentScale = ContentScale.Crop
                 )
             }
         }
     }
-
 }
+
+@Composable
+private fun InlineEditField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    textStyle: TextStyle,
+    hint: String,
+    singleLine: Boolean = true,
+    modifier: Modifier = Modifier
+) {
+    val primaryColor = MaterialTheme.colorScheme.primary
+    val onSurface    = MaterialTheme.colorScheme.onSurface
+    val dividerColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.45f)
+    val density      = LocalDensity.current
+    val textMeasurer = rememberTextMeasurer()
+    val iconSize     = 14.dp
+
+    // 文字为空时测 hint 宽度，否则测当前文字宽度，随输入实时刷新
+    val measuredPx = remember(value, hint, textStyle) {
+        val sample = value.ifEmpty { hint }
+        textMeasurer.measure(sample, textStyle).size.width
+    }
+    val measuredDp = with(density) { measuredPx.toDp() }
+
+    BoxWithConstraints(
+        contentAlignment = Alignment.Center,
+        modifier = modifier.fillMaxWidth()
+    ) {
+        val fieldWidth = (measuredDp + 8.dp)       // +8dp 留给末尾光标
+            .coerceAtMost(maxWidth * 0.78f)         // 超长时截断，防溢出
+
+        Row(verticalAlignment = Alignment.Bottom) {
+
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier.width(fieldWidth)
+            ) {
+                BasicTextField(
+                    value          = value,
+                    onValueChange  = onValueChange,
+                    singleLine     = singleLine,
+                    maxLines       = if (singleLine) 1 else 3,
+                    cursorBrush    = SolidColor(primaryColor),
+                    textStyle      = textStyle.copy(
+                        textAlign = TextAlign.Center,
+                        color     = onSurface
+                    ),
+                    modifier = Modifier.fillMaxWidth(),
+                    decorationBox = { innerTextField ->
+                        Box(
+                            contentAlignment = Alignment.Center,
+                            modifier         = Modifier.fillMaxWidth()
+                        ) {
+                            if (value.isEmpty()) {
+                                Text(
+                                    text  = hint,
+                                    style = textStyle.copy(
+                                        textAlign = TextAlign.Center,
+                                        color     = onSurface.copy(alpha = 0.35f)
+                                    )
+                                )
+                            }
+                            innerTextField()
+                        }
+                    }
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                HorizontalDivider(thickness = 1.dp, color = dividerColor)
+            }
+
+            Spacer(modifier = Modifier.width(4.dp))
+            Icon(
+                imageVector        = Icons.Default.Edit,
+                contentDescription = null,
+                modifier           = Modifier.size(iconSize),
+                tint               = primaryColor.copy(alpha = 0.55f)
+            )
+        }
+    }
+}
+
 
 @Composable
 fun BubbleItem(
@@ -370,12 +503,8 @@ fun ProfileScreenPreview(){
     EverydayEnglishTheme {
         val profileUiState = ProfileUiState(
             userName = "Candy",
-            userAvatar = Uri.parse(
-                "android.resource://com.example.everydayenglish/${R.drawable.default_avatar}"
-            ),
-            profileBackground = Uri.parse(
-                "android.resource://com.example.everydayenglish/${R.drawable.default_profile_background}"
-            ),
+            userAvatar = "android.resource://com.example.everydayenglish/${R.drawable.default_avatar}".toUri(),
+            profileBackground = "android.resource://com.example.everydayenglish/${R.drawable.default_profile_background}".toUri(),
             totalStudyDays = 45,
             totalSentencesCompleted = 1280,
             currentStreak = 7,

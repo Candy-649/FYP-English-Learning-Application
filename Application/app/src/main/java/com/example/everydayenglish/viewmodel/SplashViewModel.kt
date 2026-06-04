@@ -3,6 +3,7 @@ package com.example.everydayenglish.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.example.everydayenglish.data.PainterDefaults
 import com.example.everydayenglish.data.Repository.AppPreferencesRepository
 import com.example.everydayenglish.data.Repository.ExerciseRepository
 import com.example.everydayenglish.data.Repository.UserProfileRepository
@@ -55,7 +56,15 @@ class SplashViewModel(
                 val userId = getOrCreateUserId()
                 val profile = userProfileRepository.getUserProfile(userId)
                 if (profile == null) {
-                    userProfileRepository.insertUserProfile(UserProfile(userId = userId))
+                    val shortId = userId.replace("-", "").take(3).uppercase()
+                    val defaultName = "user$shortId"
+                    userProfileRepository.insertUserProfile(
+                        UserProfile(
+                            userId = userId,
+                            userName = defaultName,
+                            avatarUri = PainterDefaults.defaultAvatarUri,
+                            profileBackgroundUri = PainterDefaults.defaultProfileBackgroundUri)
+                    )
                 }
             },
             Step(weight = 1) {

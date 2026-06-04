@@ -71,9 +71,10 @@ class ExerciseViewModel(
 
             try {
                 val profile = userProfileRepository.getUserProfile(userId = userId)
-                    ?: UserProfile(userId = userId)
-
-                fetchExerciseBatch(profile)
+                fetchExerciseBatch(
+                    dailyGoal     = profile?.dailyGoal ?: 10,
+                    todayProgress = profile?.todayProgress ?: 0
+                )
 
             } catch (e: Exception) {
                 _uiState.update {
@@ -83,8 +84,8 @@ class ExerciseViewModel(
         }
     }
 
-    private suspend fun fetchExerciseBatch(profile: UserProfile) {
-        val dailyGoal = profile.dailyGoal.coerceAtLeast(1)
+    private suspend fun fetchExerciseBatch(dailyGoal: Int, todayProgress: Int) {
+        val dailyGoal = dailyGoal.coerceAtLeast(1)
         val batch = mutableListOf<ExerciseWithReferenceAnswers>()
         val steps = mutableListOf<SelectionStepLog>()
 
@@ -140,7 +141,7 @@ class ExerciseViewModel(
                 exerciseQueue    = batch,
                 currentIndex     = 0,
                 dailyGoal        = dailyGoal,
-                todayProgress    = profile.todayProgress,
+                todayProgress    = todayProgress,
                 totalAnswered    = 0,
                 correctCount     = 0,
                 feedbackState    = null,
@@ -334,8 +335,10 @@ class ExerciseViewModel(
             _uiState.update { it.copy(isLoading = true, errorMessage = null) }
             try {
                 val profile = userProfileRepository.getUserProfile(userId)
-                    ?: UserProfile(userId = userId)
-                fetchExerciseBatch(profile)
+                fetchExerciseBatch(
+                    dailyGoal     = profile?.dailyGoal ?: 10,
+                    todayProgress = profile?.todayProgress ?: 0
+                )
             } catch (e: Exception) {
                 _uiState.update {
                     it.copy(isLoading = false, errorMessage = e.message ?: "Unknown error")

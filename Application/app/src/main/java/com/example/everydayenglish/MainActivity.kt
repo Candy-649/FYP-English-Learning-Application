@@ -121,15 +121,16 @@ fun AppNavigation(
                 profileViewModel.refresh()
                 onPauseOrDispose {}
             }
+            val uiState = profileViewModel.uiState.collectAsState().value
             ProfileScreen(
-                uiState = profileViewModel.uiState.collectAsState().value,
-                bubbles = profileViewModel.uiState.collectAsState().value.toBubbles(),
-                onBackClick = {
-                    navController.popBackStack(
-                        Screen.MainScreen.route,
-                        inclusive = false
-                    )
-                }
+                uiState          = uiState,
+                bubbles          = uiState.toBubbles(),
+                onBackClick      = {
+                    navController.popBackStack(Screen.MainScreen.route, inclusive = false)
+                },
+                onUserNameChange = profileViewModel::updateUserName,
+                onBioChange      = profileViewModel::updateBio,
+                onSaveProfile    = profileViewModel::saveProfile
             )
         }
         composable(Screen.SplashScreen.route){
