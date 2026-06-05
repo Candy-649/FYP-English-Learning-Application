@@ -139,7 +139,8 @@ fun AppNavigation(
                     onBioChange = profileViewModel::updateBio,
                     onSaveProfile = profileViewModel::saveProfile,
                     onAvatarChange = profileViewModel::updateAvatar,
-                    onBackgroundChange = profileViewModel::updateBackground
+                    onBackgroundChange = profileViewModel::updateBackground,
+                    onSetEditing = profileViewModel::setEditing
                 )
             }
             composable(Screen.SplashScreen.route){

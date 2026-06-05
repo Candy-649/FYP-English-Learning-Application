@@ -265,7 +265,7 @@ class ExerciseViewModel(
             // evaluationOffline / isEvaluating 中用户跳走：Bandit 跳过，进度照常推进
 
             val solved      = !gaveUp && feedback.isCorrect == true && !feedback.evaluationOffline
-            val newProgress = state.todayProgress + 1
+            val newProgress = if (solved) state.todayProgress + 1 else state.todayProgress
             val newAnswered = state.totalAnswered + 1
             val newCorrect  = if (solved) state.correctCount + 1 else state.correctCount
 

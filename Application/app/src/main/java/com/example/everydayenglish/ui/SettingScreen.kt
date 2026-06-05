@@ -66,17 +66,24 @@ fun SettingScreen(
     var pendingDailyGoal by remember {
         mutableStateOf(uiState.dailyGoal)
     }
+    var pendingDarkMode by remember { mutableStateOf(uiState.darkModeOption) }
 
     // Dark Mode Sheet
     if (showDarkModeSheet) {
         val darkModeOptions = DarkModeOption.entries
         val initialIndex = darkModeOptions.indexOf(uiState.darkModeOption).coerceAtLeast(0)
         ModalBottomSheet(onDismissRequest = { showDarkModeSheet = false }) {
-            PickerSheetContent(title = "Dark Mode") {
+            PickerSheetContent(
+                title = "Dark Mode",
+                onConfirm = {                          // 加 confirm
+                    onDarkModeOptionChange(pendingDarkMode)
+                    showDarkModeSheet = false
+                }
+            ) {
                 WheelPicker(
                     items = darkModeOptions,
-                    initialIndex = initialIndex,          // 对准当前选项
-                    selectedValue = { onDarkModeOptionChange(it) }
+                    initialIndex = initialIndex,
+                    selectedValue = { pendingDarkMode = it }
                 )
             }
         }

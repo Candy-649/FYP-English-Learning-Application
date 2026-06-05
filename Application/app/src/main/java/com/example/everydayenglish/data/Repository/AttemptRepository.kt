@@ -6,4 +6,5 @@ interface AttemptRepository {
     suspend fun insert(attempt: QuestionAttempt)
     suspend fun getRecent(limit: Int): List<QuestionAttempt>
     suspend fun getAllByUser(userId: String): List<QuestionAttempt>
+    suspend fun getTodaySolvedCount(userId: String, todayStart: Long): Int
 }

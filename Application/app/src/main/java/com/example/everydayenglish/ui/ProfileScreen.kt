@@ -52,6 +52,7 @@ import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -113,11 +114,15 @@ fun ProfileScreen(
     onBioChange: (String) -> Unit = {},
     onSaveProfile: () -> Unit = {},
     onAvatarChange: (Uri) -> Unit = {},
-    onBackgroundChange: (Uri) -> Unit = {}
+    onBackgroundChange: (Uri) -> Unit = {},
+    onSetEditing: (Boolean) -> Unit = {}
 ) {
     var isEditing by remember { mutableStateOf(false) }
     var editName  by remember { mutableStateOf("") }
     var editBio   by remember { mutableStateOf("") }
+    val currentAvatarUri by rememberUpdatedState(uiState.userAvatar)
+    val currentBackgroundUri by rememberUpdatedState(uiState.profileBackground)
+
 
     val context = LocalContext.current
     val scope   = rememberCoroutineScope()
@@ -130,10 +135,6 @@ fun ProfileScreen(
                 val fileName = "user_avatar_${System.currentTimeMillis()}.jpg"
                 val saved = copyUriToInternalStorage(context, it, fileName)
                 saved?.let { newUri ->
-                    val oldUri = uiState.userAvatar
-                    if (oldUri.scheme == "file") {
-                        oldUri.path?.let { path -> File(path).delete()}
-                    }
                     onAvatarChange(newUri)
                 }
             }
@@ -148,10 +149,6 @@ fun ProfileScreen(
                 val fileName = "profile_background_${System.currentTimeMillis()}.jpg"
                 val saved = copyUriToInternalStorage(context, it, fileName)
                 saved?.let { newUri ->
-                    val oldUri = uiState.profileBackground
-                    if (oldUri.scheme == "file") {
-                        oldUri.path?.let { path -> File(path).delete() }
-                    }
                     onBackgroundChange(newUri)
                 }
             }
@@ -178,7 +175,10 @@ fun ProfileScreen(
                 },
                 navigationIcon = {
                     IconButton(onClick = {
-                        if (isEditing) isEditing = false else onBackClick()
+                        if (isEditing) {
+                            isEditing = false
+                            onSetEditing(false)
+                        } else onBackClick()
                     }) {
                         Icon(
                             imageVector = if (isEditing) Icons.Default.Close
@@ -195,6 +195,7 @@ fun ProfileScreen(
                             onBioChange(editBio.trim())
                             onSaveProfile()
                             isEditing = false
+                            onSetEditing(false)
                         }) {
                             Icon(
                                 imageVector = Icons.Default.Check,
@@ -207,6 +208,7 @@ fun ProfileScreen(
                             editName = uiState.userName
                             editBio  = uiState.bio
                             isEditing = true
+                            onSetEditing(true)
                         }) {
                             Icon(
                                 imageVector = Icons.Default.Edit,

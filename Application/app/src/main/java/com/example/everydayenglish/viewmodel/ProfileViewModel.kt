@@ -1,6 +1,7 @@
 package com.example.everydayenglish.viewmodel
 
 import android.net.Uri
+import android.util.Log
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
@@ -31,58 +32,36 @@ class ProfileViewModel(
 
     val uiState = _uiState.asStateFlow()
 
+    private var isEditing = false
+
     init {
         loadProfile()
     }
 
+    fun setEditing(editing: Boolean) {
+        isEditing = editing
+    }
     private fun loadProfile() {
-
         viewModelScope.launch {
-
+            Log.d("ProfileVM", "loadProfile called")
             try {
-
-                val userId =
-                    appPreferencesRepository
-                        .getUserId()
-
-                val profile =
-                    userProfileRepository
-                        .getUserProfile(userId)
-
-                if (profile != null) {
-
-                    _uiState.update {
-
-                        it.copy(
-
-                            userName =
-                                profile.userName,
-
-                            bio =
-                                profile.bio,
-                            userAvatar = profile.avatarUri,
-                            profileBackground = profile.profileBackgroundUri,
-                            totalStudyDays =
-                                profile.totalStudyDays,
-
-                            totalSentencesCompleted =
-                                profile.totalSentencesCompleted,
-
-                            currentStreak =
-                                profile.currentStreak,
-
-                            dailyGoal =
-                                profile.dailyGoal,
-
-                            todayProgress =
-                                profile.todayProgress
-                        )
-                    }
+                val userId = appPreferencesRepository.getUserId()
+                val profile = userProfileRepository.getUserProfile(userId) ?: return@launch
+                _uiState.update { current ->
+                    Log.d("ProfileVM", "loadProfile updating userAvatar: ${profile.avatarUri}")
+                    current.copy(
+                        userName = profile.userName,
+                        bio = profile.bio,
+                        userAvatar = if (isEditing) current.userAvatar else profile.avatarUri,
+                        profileBackground = if (isEditing) current.profileBackground else profile.profileBackgroundUri,
+                        totalStudyDays = profile.totalStudyDays,
+                        totalSentencesCompleted = profile.totalSentencesCompleted,
+                        currentStreak = profile.currentStreak,
+                        dailyGoal = profile.dailyGoal,
+                        todayProgress = profile.todayProgress
+                    )
                 }
-
-            } catch (_: Exception) {
-
-            }
+            } catch (_: Exception) { }
         }
     }
 
@@ -108,6 +87,7 @@ class ProfileViewModel(
     }
 
     fun updateAvatar(uri: Uri) {
+        Log.d("ProfileVM", "updateAvatar called: $uri")
         _uiState.update { it.copy(userAvatar = uri) }
     }
 

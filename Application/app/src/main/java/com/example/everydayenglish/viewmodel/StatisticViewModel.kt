@@ -49,6 +49,9 @@ class StatisticViewModel(
                 val profile = profileDeferred.await()
                 val attempts = attemptsDeferred.await()
                 Log.d("StatisticVM", "QuestionAttempt count: ${attempts.size}") // 加这一行
+                attempts.forEach {
+                    Log.d("StatisticVM", "attempt: promptId=${it.promptId} tense=${it.tense} solved=${it.solved} tries=${it.totalTries} accuracy=${it.accuracy}")
+                }
                 val todayStudy = profile?.todayProgress ?: 0
                 val studyDuration = (profile?.totalSentencesCompleted ?: 0) * MINUTES_PER_EXERCISE
 

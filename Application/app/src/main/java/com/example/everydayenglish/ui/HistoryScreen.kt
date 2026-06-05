@@ -38,6 +38,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -395,6 +396,25 @@ private fun RecordRow(
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
+        // ── debug 区域 ────────────────────────────────────────────
+        /*HorizontalDivider(
+            modifier = Modifier.padding(vertical = 4.dp),
+            color    = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+        )
+        Text(
+            text  = "recordId=${record.recordId}  referId=${record.referId}  pending=${record.evaluationPending}  isCorrect=${record.isCorrect}",
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.outline,
+            fontFamily = FontFamily.Monospace
+        )
+        record.feedback?.takeIf { it.isNotBlank() }?.let {
+            Text(
+                text  = "feedback: $it",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.outline,
+                fontFamily = FontFamily.Monospace
+            )
+        }*/
     }
 }
 

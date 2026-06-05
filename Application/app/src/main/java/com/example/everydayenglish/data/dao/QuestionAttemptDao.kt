@@ -15,4 +15,9 @@ interface QuestionAttemptDao {
 
     @Query("SELECT * FROM question_attempts WHERE userId = :userId ORDER BY timestamp DESC")
     suspend fun getAllByUser(userId: String): List<QuestionAttempt>
+    @Query("""
+    SELECT COUNT(*) FROM question_attempts 
+    WHERE userId = :userId AND solved = 1 AND timestamp >= :todayStart
+""")
+    suspend fun getTodaySolvedCount(userId: String, todayStart: Long): Int
 }

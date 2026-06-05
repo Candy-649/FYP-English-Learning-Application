@@ -1,5 +1,6 @@
 package com.example.everydayenglish.ui
 
+import android.text.Layout
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -40,8 +41,10 @@ import com.patrykandpatrick.vico.compose.cartesian.axis.rememberStart
 import com.patrykandpatrick.vico.compose.cartesian.layer.rememberColumnCartesianLayer
 import com.patrykandpatrick.vico.compose.cartesian.layer.rememberLineCartesianLayer
 import com.patrykandpatrick.vico.compose.cartesian.rememberCartesianChart
+import com.patrykandpatrick.vico.compose.cartesian.rememberVicoScrollState
 import com.patrykandpatrick.vico.compose.cartesian.rememberVicoZoomState
 import com.patrykandpatrick.vico.compose.common.component.rememberLineComponent
+import com.patrykandpatrick.vico.compose.common.component.rememberTextComponent
 import com.patrykandpatrick.vico.compose.common.fill
 import com.patrykandpatrick.vico.core.cartesian.Zoom
 import com.patrykandpatrick.vico.core.cartesian.axis.HorizontalAxis
@@ -57,6 +60,7 @@ fun StatisticScreen(
     uiState: StatisticUiState,
     onBackClick: () -> Unit
 ){
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -201,6 +205,7 @@ fun TenseBarChart(data: Map<String, Int>) {
     val modelProducer = remember { CartesianChartModelProducer() }
     val labels = data.keys.toList()
     val color = MaterialTheme.colorScheme.primary
+    val labelColor = MaterialTheme.colorScheme.onSurface
 
     LaunchedEffect(data) {
         if (data.isEmpty()) return@LaunchedEffect
@@ -217,18 +222,31 @@ fun TenseBarChart(data: Map<String, Int>) {
                         fill = fill(color = color),
                         thickness = 40.dp   // ← 限制柱子宽度，调这个值
                     )
-                )
+                ),
+                columnCollectionSpacing = 30.dp,
             ),
             startAxis = VerticalAxis.rememberStart(
-                valueFormatter = { _, value, _ -> value.toInt().toString() }  // ← 加这个
+                label = rememberTextComponent(
+                    color = labelColor
+                ),
+                itemPlacer = VerticalAxis.ItemPlacer.step(step = { 1.0 }),
+                valueFormatter = { _, value, _ -> value.toInt().toString() }
             ),
             bottomAxis = HorizontalAxis.rememberBottom(
+                label = rememberTextComponent(
+                    color = labelColor,
+                    lineCount = 3,
+                    textAlignment = Layout.Alignment.ALIGN_CENTER,
+                    ),
+
+                itemPlacer = HorizontalAxis.ItemPlacer.aligned(spacing = { 1 }, addExtremeLabelPadding = true),
                 valueFormatter = { _, value, _ ->
-                    labels.getOrNull(value.toInt()) ?: ""
-                }
+                    labels.getOrNull(value.toInt())?.replaceFirst(" ", "\n") ?: ""
+                },
             )
         ),
         modelProducer = modelProducer,
+        scrollState = rememberVicoScrollState(),
         zoomState = rememberVicoZoomState(
             initialZoom = Zoom.fixed(),
             minZoom = Zoom.min(Zoom.fixed(), Zoom.Content)),
@@ -241,6 +259,7 @@ fun DailyExerciseChart(
     data: Map<Int, Int>
 ){
     val modelProducer = remember { CartesianChartModelProducer() }
+    val labelColor = MaterialTheme.colorScheme.onSurface
 
     LaunchedEffect(data) {
         if (data.isEmpty()) return@LaunchedEffect  // 加这一行
@@ -257,8 +276,17 @@ fun DailyExerciseChart(
     CartesianChartHost(
         chart = rememberCartesianChart(
             rememberLineCartesianLayer(),
-            startAxis = VerticalAxis.rememberStart(),
+            startAxis = VerticalAxis.rememberStart(
+                label = rememberTextComponent(
+                    color = labelColor
+                ),
+                itemPlacer = VerticalAxis.ItemPlacer.step(step = { 1.0 }),
+                valueFormatter = { _, value, _ -> value.toInt().toString() }
+            ),
             bottomAxis = HorizontalAxis.rememberBottom(
+                label = rememberTextComponent(
+                    color = labelColor
+                ),
                 valueFormatter = { _, value, _ ->
                     when (val daysAgo = 6 - value.toInt()) {
                         0 -> "Today"

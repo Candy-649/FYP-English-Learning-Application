@@ -11,4 +11,5 @@ interface UserProfileRepository {
     suspend fun incrementSentencesCompleted(userId: String)
     suspend fun incrementStudyDays(userId: String)
     suspend fun updateSentenceCount(count: Int, userId: String)
+    suspend fun updateDailyGoal(goal: Int, userId: String)
 }

@@ -23,33 +23,45 @@ class DeepSeekSemanticChecker(
 
     // ── system prompt（固定内容，DeepSeek 自动缓存）──────────────────────────
     private val SYSTEM_PROMPT = """
-        You are an English language teacher evaluating student answers.
-        Assess the semantic similarity between a student's answer and reference answers.
- 
-        Rules:
-        - Focus on meaning and communication, not exact wording.
-        - A correct paraphrase should score high even if worded differently.
-        - Grammar errors alone should NOT lower the score significantly.
-        - Score 1.0 = same meaning, 0.0 = completely unrelated.
- 
-        Respond ONLY with valid JSON, no markdown, no extra text:
-        {"score": <float 0.0-1.0>, "feedback": "<one encouraging sentence in English>"}
-    """.trimIndent()
+    You are an English teacher evaluating a student's answer and providing targeted teaching feedback.
+
+    Your job is NOT just to compare the student's answer to the reference.
+    Your job is to diagnose WHY the student likely made the error, then teach the underlying concept.
+
+    Evaluation process:
+    1. Identify what the student wrote and what the correct answer requires.
+    2. Diagnose the likely root cause of the error. Ask yourself:
+       - Did they confuse two similar grammar structures (e.g. past simple vs past perfect)?
+       - Did they misuse a word due to a common L2 interference pattern?
+       - Did they misunderstand the sentence's time relationship or logical structure?
+       - Is the concept itself complex and commonly misunderstood?
+    3. Write feedback that teaches the concept — not just names the error.
+
+    Feedback rules:
+    - If the answer is CORRECT (score ≥ 0.75): Give one sentence of genuine confirmation.
+      You may note a minor stylistic alternative if one exists, but do NOT manufacture problems.
+    - If the answer is PARTIALLY or FULLY WRONG (score < 0.75):
+      - Do NOT just say what the correct answer is.
+      - Explain the underlying grammar rule or meaning distinction that the student seems to have missed.
+      - Use a brief example if it helps clarify the concept (different from the exercise sentence).
+      - Keep it to 2–3 sentences. Be direct, not condescending.
+
+    Grammar errors that do not change meaning should not lower the score.
+    Grammar errors that change tense, subject, or core meaning should lower the score.
+
+    Respond ONLY with valid JSON, no markdown, no extra text:
+    {
+      "score": <float 0.0–1.0>,
+      "feedback": "<teaching-focused feedback, 2–3 sentences>",
+      "error_type": "<one of: none | tense_confusion | word_confusion | incomplete | off_topic | grammar>"
+    }
+""".trimIndent()
 
     override suspend fun evaluate(
         userAnswer: String,
         referenceAnswers: List<String>
     ): SemanticResult = withContext(Dispatchers.IO) {
-        runCatching {
-            callDeepSeekApi(userAnswer, referenceAnswers)
-        }.getOrElse {
-            // API 失败时降级，不阻断用户流程
-            SemanticResult(
-                score     = 0.5,
-                feedback  = "Unable to evaluate semantics right now.",
-                isCorrect = false
-            )
-        }
+        callDeepSeekApi(userAnswer, referenceAnswers)
     }
 
     private fun callDeepSeekApi(
@@ -105,7 +117,6 @@ class DeepSeekSemanticChecker(
         return parseResponse(responseText)
     }
 
-    // ── 解析 OpenAI-format 响应 ───────────────────────────────────────────────
     private fun parseResponse(raw: String): SemanticResult {
         val content = JSONObject(raw)
             .getJSONArray("choices")
@@ -114,14 +125,16 @@ class DeepSeekSemanticChecker(
             .getString("content")
             .trim()
 
-        val json     = JSONObject(content)
-        val score    = json.getDouble("score").coerceIn(0.0, 1.0)
-        val feedback = json.getString("feedback")
+        val json      = JSONObject(content)
+        val score     = json.getDouble("score").coerceIn(0.0, 1.0)
+        val feedback  = json.getString("feedback")
+        val errorType = json.optString("error_type", "none")
 
         return SemanticResult(
             score     = score,
             feedback  = feedback,
-            isCorrect = score >= SemanticResult.CORRECT_THRESHOLD
+            isCorrect = score >= SemanticResult.CORRECT_THRESHOLD,
+            errorType = errorType
         )
     }
 }

@@ -4,22 +4,19 @@ import android.content.Context
 import ai.onnxruntime.OnnxTensor
 import ai.onnxruntime.OrtEnvironment
 import ai.onnxruntime.OrtSession
+import android.util.Log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.Closeable
 import java.nio.LongBuffer
-import kotlin.math.exp               // ✅ 修复①：补上 exp 的导入
+import kotlin.math.exp
 
-// ✅ 修复⑤：实现 Closeable，消除 "class/function never used" 警告
 class OnnxGrammarChecker(
     private val context: Context,
     private val modelFile: String = "grammar_model.onnx",
     private val grammaticalThreshold: Float = 0.75f
 ) : GrammarChecker, Closeable {
 
-    // ✅ 修复②：改用可空 backing field，替代 by lazy
-    //    这样 close() 里可以用 ?.close() 安全判空，
-    //    而不是用只适用于 late init 的 ::xxx.isInitialized
     private var envInstance: OrtEnvironment? = null
     private val env: OrtEnvironment
         get() = envInstance ?: OrtEnvironment.getEnvironment()
@@ -28,21 +25,31 @@ class OnnxGrammarChecker(
     private var sessionInstance: OrtSession? = null
     private val session: OrtSession
         get() = sessionInstance ?: run {
-            val bytes = context.assets.open(modelFile).readBytes()
-            env.createSession(bytes, OrtSession.SessionOptions())
+            val modelFile = getOrCopyModelFile()
+            env.createSession(modelFile.absolutePath, OrtSession.SessionOptions())
                 .also { sessionInstance = it }
         }
+
+    private fun getOrCopyModelFile(): java.io.File {
+        val dest = java.io.File(context.filesDir, modelFile)
+        if (!dest.exists()) {
+            context.assets.open(modelFile).use { input ->
+                dest.outputStream().use { output ->
+                    input.copyTo(output)   // 流式 copy，不会 OOM
+                }
+            }
+        }
+        return dest
+    }
 
     private val tokenizer: BertTokenizer by lazy { BertTokenizer(context) }
 
     override suspend fun check(text: String): GrammarResult =
         withContext(Dispatchers.Default) {
             runCatching { infer(text) }
-                .getOrElse {
-                    GrammarResult(
-                        issues  = emptyList(),
-                        summary = "Grammar check unavailable."
-                    )
+                .getOrElse { e ->
+                    Log.e("OnnxGrammarChecker", "Inference failed", e)  // ← 加这行
+                    GrammarResult(issues = emptyList(), summary = "Grammar check unavailable.")
                 }
         }
 

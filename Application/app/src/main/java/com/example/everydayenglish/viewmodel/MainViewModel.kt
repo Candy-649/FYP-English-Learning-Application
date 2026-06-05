@@ -4,6 +4,7 @@ import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.everydayenglish.data.Repository.AppPreferencesRepository
+import com.example.everydayenglish.data.Repository.AttemptRepository
 import com.example.everydayenglish.data.Repository.UserProfileRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -16,7 +17,7 @@ class MainViewModel(
     UserProfileRepository,
 
     private val appPreferencesRepository:
-    AppPreferencesRepository
+    AppPreferencesRepository,
 
 ) : ViewModel() {
 

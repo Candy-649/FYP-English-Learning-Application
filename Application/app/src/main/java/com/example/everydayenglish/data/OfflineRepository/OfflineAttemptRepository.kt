@@ -11,4 +11,7 @@ class OfflineAttemptRepository(
     override suspend fun getRecent(limit: Int): List<QuestionAttempt> = questionAttemptDao.getRecent(limit)
     override suspend fun getAllByUser(userId: String): List<QuestionAttempt> =
         questionAttemptDao.getAllByUser(userId)
+    override suspend fun getTodaySolvedCount(userId: String, todayStart: Long): Int =
+        questionAttemptDao.getTodaySolvedCount(userId, todayStart)
+
 }

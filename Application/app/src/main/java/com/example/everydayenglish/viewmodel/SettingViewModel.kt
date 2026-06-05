@@ -1,5 +1,6 @@
 package com.example.everydayenglish.viewmodel
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.everydayenglish.data.OfflineRepository.OfflineAppPreferencesRepository
@@ -23,7 +24,7 @@ class SettingViewModel(
     private fun loadSettings() {
         viewModelScope.launch {
             try {
-                val dailyGoal    = appPreferencesRepository.getDailyGoal()
+
                 val darkMode     = appPreferencesRepository.getDarkMode()
                 val darkModeOpt  = runCatching {
                     DarkModeOption.valueOf(appPreferencesRepository.getDarkModeOption())
@@ -33,6 +34,7 @@ class SettingViewModel(
                 // sentenceCount 来自 UserProfile
                 val userId       = appPreferencesRepository.getUserId()
                 val profile      = userProfileRepository.getUserProfile(userId)
+                val dailyGoal    = profile?.dailyGoal ?: 10
                 val sentenceCount = profile?.recentSentenceCount ?: 20
 
                 val cacheText = (appPreferencesRepository
@@ -56,7 +58,8 @@ class SettingViewModel(
     fun updateDailyGoal(goal: Int) {
         _uiState.update { it.copy(dailyGoal = goal) }
         viewModelScope.launch {
-            appPreferencesRepository.saveDailyGoal(goal)
+            val userId = appPreferencesRepository.getUserId()
+            userProfileRepository.updateDailyGoal(goal, userId)
         }
     }
 
@@ -71,7 +74,9 @@ class SettingViewModel(
     fun updateDarkModeOption(option: DarkModeOption) {
         _uiState.update { it.copy(darkModeOption = option) }
         viewModelScope.launch {
-            appPreferencesRepository.saveDarkModeOption(option.toString())
+            appPreferencesRepository.saveDarkModeOption(option.name)
+            val readBack = appPreferencesRepository.getDarkModeOption()
+            Log.d("DarkMode", "saved=${option.name}, readBack=$readBack")
         }
     }
 
