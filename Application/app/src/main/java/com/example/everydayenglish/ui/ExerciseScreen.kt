@@ -23,6 +23,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberOverscrollEffect
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -300,16 +301,34 @@ private fun FeedbackDialog(
                             )
                         }
                     }
-                    else -> {
-                        // 有结果了才显示 AI feedback 和 semantic score
-                        feedback.feedback?.let { Text(
-                            it,
-                            style = MaterialTheme.typography.bodyLarge
-                        ) }
+                    feedback.isFeedbackLoading -> {
                         feedback.semanticScore?.let { score ->
                             Text(
-                                text  = "Similarity: ${"%.0f".format(score * 100)}%",
-                                style = MaterialTheme.typography.bodyLarge
+                                text = "Similarity: ${"%.0f".format(score * 100)}%",
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                        }
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(12.dp),
+                                strokeWidth = 2.dp
+                            )
+                            Text(
+                                text = "Generating feedback...",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.outline
+                            )
+                        }
+                    }
+                    else -> {
+                        feedback.feedback?.let { Text(it) }
+                        feedback.semanticScore?.let { score ->
+                            Text(
+                                text = "Similarity: ${"%.0f".format(score * 100)}%",
+                                style = MaterialTheme.typography.bodySmall
                             )
                         }
                     }
@@ -326,9 +345,10 @@ private fun FeedbackDialog(
         },
         confirmButton = {
             when {
-                // 离线 or 还在评估：只给 Next，不问对错
-                feedback.evaluationOffline || feedback.isEvaluating -> {
-                    TextButton(onClick = onNext) { Text("Next") }
+                feedback.evaluationOffline || feedback.isEvaluating || feedback.isFeedbackLoading -> {
+                    TextButton(onClick = onNext) {
+                        Text("Next")
+                    }
                 }
                 feedback.isCorrect == true -> {
                     TextButton(onClick = onNext) { Text("Next") }

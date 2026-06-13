@@ -15,6 +15,7 @@ import com.example.everydayenglish.data.entity.QuestionAttempt
 import com.example.everydayenglish.data.entity.ReferenceAnswer
 import com.example.everydayenglish.data.entity.UserProfile
 import com.example.everydayenglish.grammarChecker.GrammarChecker
+import com.example.everydayenglish.onlineEvaluation.FeedbackGenerator
 import com.example.everydayenglish.onlineEvaluation.SemanticChecker
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -50,7 +51,8 @@ class ExerciseViewModel(
     private val appPreferencesRepository: AppPreferencesRepository,
     private val attemptRepository: AttemptRepository,
     private val grammarChecker: GrammarChecker,
-    private val semanticChecker: SemanticChecker
+    private val semanticChecker: SemanticChecker,
+    private val feedbackGenerator: FeedbackGenerator
 ) : ViewModel() {
 
     private val userId: String
@@ -170,11 +172,12 @@ class ExerciseViewModel(
             if (userAnswer.isBlank()) return@launch
 
             val newTries      = state.currentTries + 1
+            //Grammar is the fastest one
             val grammarResult = grammarChecker.check(userAnswer)
             val matchedAnswer = exercise.answers.firstOrNull()
             val referenceTexts = exercise.answers.map { it.reference }
 
-            // 先存，标记为待评估
+            //Start Semantic
             val recordId = recordRepository.insertExerciseRecord(
                 ExerciseRecord(
                     promptId          = exercise.exercise.promptId,
@@ -183,11 +186,10 @@ class ExerciseViewModel(
                     userAnswer        = userAnswer,
                     isCorrect         = false,
                     grammar           = grammarResult.summary,
-                    evaluationPending = true,   // 待评估
+                    evaluationPending = true,
                 )
             )
 
-            // UI 先显示 grammar，semantic 显示 loading 状态
             _uiState.update {
                 it.copy(
                     currentTries  = newTries,
@@ -195,43 +197,52 @@ class ExerciseViewModel(
                     feedbackState = FeedbackState(
                         isCorrect              = null,
                         matchedReferenceAnswer = matchedAnswer,
-                        feedback               = null,   // 还没有
+                        feedback               = null,
                         semanticScore          = null,
                         grammar                = grammarResult.summary,
-                        isEvaluating           = true    // 新增loading状态
+                        isEvaluating           = true
                     )
                 )
             }
-
-            // 后台跑语义评估
-            try {
-                val semanticResult = semanticChecker.evaluate(userAnswer, referenceTexts)
-                recordRepository.updateEvaluation(
-                    recordId  = recordId.toInt(),
-                    score     = semanticResult.score,
-                    feedback  = semanticResult.feedback,
-                    isCorrect = semanticResult.isCorrect
+            //HuggingFace Semantic
+            val semanticResult = try {
+                semanticChecker.evaluate(userAnswer, referenceTexts)
+            } catch (e: Exception){
+                _uiState.update {
+                    it.copy(
+                        feedbackState = it.feedbackState?.copy(
+                            isEvaluating = false,
+                            evaluationOffline = true
+                        )
+                    )
+                }
+                return@launch
+            }
+            //Deepseek Feedback
+            val feedbackText = try {
+                feedbackGenerator.generate(
+                    userAnswer = userAnswer,
+                    referenceAnswers = referenceTexts,
+                    grammarSummary = grammarResult.summary,
+                    semanticScore = semanticResult.score
                 )
-                _uiState.update {
-                    it.copy(
-                        feedbackState = it.feedbackState?.copy(
-                            isCorrect     = semanticResult.isCorrect,
-                            feedback      = semanticResult.feedback,
-                            semanticScore = semanticResult.score,
-                            isEvaluating  = false
-                        )
+            } catch (e: Exception){
+                null
+            }
+            recordRepository.updateEvaluation(
+                recordId = recordId.toInt(),
+                score = semanticResult.score,
+                feedback = feedbackText ?: "",
+                isCorrect = semanticResult.isCorrect
+            )
+
+            _uiState.update {
+                it.copy(
+                    feedbackState = it.feedbackState?.copy(
+                        feedback = feedbackText,
+                        isFeedbackLoading = false
                     )
-                }
-            } catch (e: Exception) {
-                // 没网，pending 留在 DB，UI 标记为离线状态
-                _uiState.update {
-                    it.copy(
-                        feedbackState = it.feedbackState?.copy(
-                            isEvaluating    = false,
-                            evaluationOffline = true  // 新增
-                        )
-                    )
-                }
+                )
             }
         }
     }
@@ -413,6 +424,7 @@ data class FeedbackState(
     val feedback               : String?,
     val semanticScore          : Double?,
     val grammar                : String?,
-    val isEvaluating           : Boolean = false,      // 新增
-    val evaluationOffline      : Boolean = false       // 新增
+    val isEvaluating           : Boolean = false,
+    val evaluationOffline      : Boolean = false,
+    val isFeedbackLoading : Boolean = false
 )

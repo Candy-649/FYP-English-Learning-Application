@@ -17,7 +17,9 @@ import com.example.everydayenglish.data.Repository.RecordRepository
 import com.example.everydayenglish.data.Repository.UserProfileRepository
 import com.example.everydayenglish.data.dataStore.dataStore
 import com.example.everydayenglish.grammarChecker.GrammarChecker
-import com.example.everydayenglish.onlineEvaluation.DeepSeekSemanticChecker
+import com.example.everydayenglish.onlineEvaluation.DeepSeekFeedbackGenerator
+import com.example.everydayenglish.onlineEvaluation.FeedbackGenerator
+import com.example.everydayenglish.onlineEvaluation.HuggingFaceSemanticChecker
 import com.example.everydayenglish.onlineEvaluation.SemanticChecker
 import com.example.everydayenglish.onlineEvaluation.SmartGrammarChecker
 
@@ -28,8 +30,9 @@ interface AppContainer {
     val appPreferencesRepository: AppPreferencesRepository
     val banditRepository        : BanditRepository
     val attemptRepository       : AttemptRepository
-    val grammarChecker          : GrammarChecker   // SmartGrammarChecker（自动切换）
-    val semanticChecker         : SemanticChecker  // ClaudeHaikuSemanticChecker
+    val grammarChecker          : GrammarChecker
+    val semanticChecker         : SemanticChecker
+    val feedbackGenerator: FeedbackGenerator
 }
 
 class AppDataContainer(context: Context) : AppContainer {
@@ -69,5 +72,7 @@ class AppDataContainer(context: Context) : AppContainer {
 
     // 语义：Claude Haiku（API Key 从 local.properties → BuildConfig 注入）
     override val semanticChecker: SemanticChecker =
-        DeepSeekSemanticChecker(apiKey = BuildConfig.DEEPSEEK_API_KEY)
+        HuggingFaceSemanticChecker(apiToken = BuildConfig.HF_API_TOKEN)
+    override val feedbackGenerator: FeedbackGenerator =
+        DeepSeekFeedbackGenerator(apiKey = BuildConfig.DEEPSEEK_API_KEY)
 }

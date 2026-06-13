@@ -35,7 +35,8 @@ object AppViewModelProvider {
                 appPreferencesRepository = everydayEnglishApplication().container.appPreferencesRepository,
                 attemptRepository        = everydayEnglishApplication().container.attemptRepository,
                 grammarChecker           = everydayEnglishApplication().container.grammarChecker,
-                semanticChecker          = everydayEnglishApplication().container.semanticChecker  // ← 新增
+                semanticChecker          = everydayEnglishApplication().container.semanticChecker,
+                feedbackGenerator = everydayEnglishApplication().container.feedbackGenerator
             )
         }
 

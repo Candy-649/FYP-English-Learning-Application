@@ -26,6 +26,7 @@ android {
 
         buildConfigField("String", "DEEPSEEK_API_KEY",
             "\"${localProps["DEEPSEEK_API_KEY"] ?: ""}\"")
+        buildConfigField("String", "HF_API_TOKEN", "\"${localProps["HF_API_TOKEN"] ?: ""}\"")
 
     }
     buildFeatures{
