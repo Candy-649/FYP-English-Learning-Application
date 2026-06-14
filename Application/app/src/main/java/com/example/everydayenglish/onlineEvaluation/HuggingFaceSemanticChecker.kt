@@ -21,14 +21,13 @@ import java.util.concurrent.TimeUnit
  * API 文档：https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2
  *
  * 请求格式：
- *   POST https://api-inference.huggingface.co/models/sentence-transformers/all-MiniLM-L6-v2
- *   Authorization: Bearer <HF_TOKEN>
- *   Body: {
- *     "inputs": {
- *       "source_sentence": "<userAnswer>",
- *       "sentences": ["<ref1>", "<ref2>", ...]
- *     }
- *   }
+ *   curl https://router.huggingface.co/hf-inference/models/sentence-transformers/all-MiniLM-L6-v2/pipeline/sentence-similarity \
+ *     -X POST \
+ *     -H "Authorization: Bearer $HF_TOKEN" \
+ *     -H 'Content-Type: application/json' \
+ *     -d '{
+ *         "inputs": "{\n    \"source_sentence\": \"That is a happy person\",\n    \"sentences\": [\n        \"That is a happy dog\",\n        \"That is a very happy person\",\n        \"Today is a sunny day\"\n    ]\n}"
+ *     }'
  *
  * 响应格式：[0.85, 0.72]  // 每个参考答案对应一个余弦相似度分数
  */
@@ -43,7 +42,7 @@ class HuggingFaceSemanticChecker(
         .build()
 
     private val JSON_TYPE = "application/json; charset=utf-8".toMediaType()
-    private val apiUrl get() = "https://api-inference.huggingface.co/models/$modelId"
+    private val apiUrl get() = "https://router.huggingface.co/hf-inference/models/$modelId/pipeline/sentence-similarity"
 
     override suspend fun evaluate(
         userAnswer: String,
@@ -68,14 +67,13 @@ class HuggingFaceSemanticChecker(
         }.toString()
 
         val request = Request.Builder()
-            .url(apiUrl)
+            .url(apiUrl)  // 新 URL 不变
             .addHeader("Authorization", "Bearer $apiToken")
             .addHeader("Content-Type", "application/json")
             .post(body.toRequestBody(JSON_TYPE))
             .build()
 
         val responseText = client.newCall(request).execute().use { resp ->
-            // 503 = 模型正在加载（冷启动），直接抛出让上层重试或降级
             check(resp.isSuccessful) {
                 "HuggingFace API error ${resp.code}: ${resp.body?.string()}"
             }

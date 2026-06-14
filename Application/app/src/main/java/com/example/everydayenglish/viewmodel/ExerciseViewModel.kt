@@ -208,6 +208,7 @@ class ExerciseViewModel(
             val semanticResult = try {
                 semanticChecker.evaluate(userAnswer, referenceTexts)
             } catch (e: Exception){
+                android.util.Log.e("HF_DEBUG", "Semantic check failed: ${e.message}", e)
                 _uiState.update {
                     it.copy(
                         feedbackState = it.feedbackState?.copy(
@@ -239,8 +240,11 @@ class ExerciseViewModel(
             _uiState.update {
                 it.copy(
                     feedbackState = it.feedbackState?.copy(
+                        isCorrect = semanticResult.isCorrect,
+                        semanticScore = semanticResult.score,
                         feedback = feedbackText,
-                        isFeedbackLoading = false
+                        isFeedbackLoading = false,
+                        isEvaluating = false
                     )
                 )
             }

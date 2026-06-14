@@ -16,10 +16,9 @@ class SwUcbBandit(
     var totalPulls: Int = 0
 
     fun selectArm(): TenseCategory {
+        totalPulls++
         val unexplored = arms.values.filter { it.count() == 0 }
         if (unexplored.isNotEmpty()) return unexplored.random().category
-
-        totalPulls++
 
         return arms.values.maxByOrNull { arm ->
             val mu = arm.averageAccuracy()
