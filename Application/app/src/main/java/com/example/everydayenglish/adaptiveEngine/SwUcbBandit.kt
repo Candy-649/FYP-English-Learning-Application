@@ -21,7 +21,7 @@ class SwUcbBandit(
         if (unexplored.isNotEmpty()) return unexplored.random().category
 
         return arms.values.maxByOrNull { arm ->
-            val mu = arm.averageAccuracy()
+            val mu = 1.0 - arm.averageAccuracy()
             val n = arm.count()
             val explorationBonus = explorationC *
                     sqrt(ln(minOf(totalPulls, windowSize).toDouble()) / n)
