@@ -17,8 +17,8 @@ class OfflineUserProfileRepository(
     override suspend fun getUserProfile(userId: String): UserProfile? =
         userProfileDao.getUserProfile(userId)
 
-    override suspend fun updateTodayProgress(progress: Int, userId: String) =
-        userProfileDao.updateTodayProgress(progress, userId)
+    override suspend fun updateTodayProgress(progress: Int, date: Long, userId: String) =
+        userProfileDao.updateTodayProgress(progress, date, userId)
 
     override suspend fun updateStreak(streak: Int, date: Long, userId: String) =
         userProfileDao.updateStreak(streak, date, userId)

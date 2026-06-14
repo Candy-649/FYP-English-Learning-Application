@@ -284,7 +284,7 @@ class ExerciseViewModel(
             val newAnswered = state.totalAnswered + 1
             val newCorrect  = if (solved) state.correctCount + 1 else state.correctCount
 
-            userProfileRepository.updateTodayProgress(newProgress, userId)
+            userProfileRepository.updateTodayProgress(newProgress, System.currentTimeMillis(), userId)
 
             if (newAnswered >= state.dailyGoal) {
                 userProfileRepository.incrementStudyDays(userId)

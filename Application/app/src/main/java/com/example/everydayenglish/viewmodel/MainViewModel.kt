@@ -10,6 +10,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import java.util.Calendar
 
 class MainViewModel(
 
@@ -31,33 +32,34 @@ class MainViewModel(
     }
 
     private fun loadUserInfo() {
-
         viewModelScope.launch {
-
-            val userId: String =
-                appPreferencesRepository
-                    .getUserId()
-
-            val profile =
-                userProfileRepository
-                    .getUserProfile(userId)
+            val userId = appPreferencesRepository.getUserId()
+            var profile = userProfileRepository.getUserProfile(userId)
 
             if (profile != null) {
-
+                if (isNewDay(profile.lastStudiedDate) && profile.todayProgress > 0) {
+                    userProfileRepository.updateTodayProgress(0, System.currentTimeMillis(), userId)
+                    profile = profile.copy(todayProgress = 0)
+                }
                 _uiState.update {
-
                     it.copy(
-
-                        todayProgress =
-                            profile.todayProgress,
-
-                        dailyGoal =
-                            profile.dailyGoal,
-                        userAvatar = profile.avatarUri,
+                        todayProgress = profile.todayProgress,
+                        dailyGoal     = profile.dailyGoal,
+                        userAvatar    = profile.avatarUri,
                     )
                 }
             }
         }
+    }
+
+    private fun isNewDay(lastMs: Long): Boolean {
+        if (lastMs == 0L) return true   // 旧数据没记录日期，保守起见也重置
+        val cal = Calendar.getInstance()
+        cal.set(Calendar.HOUR_OF_DAY, 0)
+        cal.set(Calendar.MINUTE, 0)
+        cal.set(Calendar.SECOND, 0)
+        cal.set(Calendar.MILLISECOND, 0)
+        return lastMs < cal.timeInMillis
     }
     fun refresh(){
         loadUserInfo()

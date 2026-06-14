@@ -18,8 +18,8 @@ interface UserProfileDao {
     @Query("SELECT * FROM user_profiles WHERE userId = :userId")
     suspend fun getUserProfile(userId: String): UserProfile?
 
-    @Query("UPDATE user_profiles SET todayProgress = :progress WHERE userId = :userId")
-    suspend fun updateTodayProgress(progress: Int, userId: String)
+    @Query("UPDATE user_profiles SET todayProgress = :progress, lastStudiedDate = :date WHERE userId = :userId")
+    suspend fun updateTodayProgress(progress: Int, date: Long, userId: String)
 
     @Query("UPDATE user_profiles SET currentStreak = :streak, lastStudiedDate = :date WHERE userId = :userId")
     suspend fun updateStreak(streak: Int, date: Long, userId: String)
