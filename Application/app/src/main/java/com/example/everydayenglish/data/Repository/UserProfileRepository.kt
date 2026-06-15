@@ -1,6 +1,7 @@
 package com.example.everydayenglish.data.Repository
 
 import com.example.everydayenglish.data.entity.UserProfile
+import kotlinx.coroutines.flow.Flow
 
 interface UserProfileRepository {
     suspend fun insertUserProfile(userProfile: UserProfile)
@@ -12,4 +13,5 @@ interface UserProfileRepository {
     suspend fun incrementStudyDays(userId: String)
     suspend fun updateSentenceCount(count: Int, userId: String)
     suspend fun updateDailyGoal(goal: Int, userId: String)
+    fun observeUserProfile(userId: String): Flow<UserProfile?>
 }

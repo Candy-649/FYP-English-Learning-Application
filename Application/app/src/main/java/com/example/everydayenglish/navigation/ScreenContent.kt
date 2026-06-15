@@ -50,7 +50,7 @@ fun ScreenContent(
             ProfileScreen(
                 uiState            = uiState,
                 bubbles            = uiState.toBubbles(),
-                onBackClick        = { nav.popBack() },
+                onBackClick        = { nav.popBackTo(Screen.MainScreen.route) },
                 onUserNameChange   = profileViewModel::updateUserName,
                 onBioChange        = profileViewModel::updateBio,
                 onSaveProfile      = profileViewModel::saveProfile,
@@ -68,7 +68,7 @@ fun ScreenContent(
                 onNext           = { exerciseViewModel.finishCurrentQuestion() },
                 onRetry          = { exerciseViewModel.dismissFeedback() },
                 onGiveUp         = { exerciseViewModel.finishCurrentQuestion(gaveUp = true) },
-                onReturn         = { nav.popBack() },
+                onReturn         = { nav.popBackTo(Screen.MainScreen.route) },
                 onRestartSession = { exerciseViewModel.restartSession() },
                 onToggleDebug    = { exerciseViewModel.toggleDebugPanel() }
             )
@@ -78,7 +78,7 @@ fun ScreenContent(
             LaunchedEffect(route) { statisticViewModel.refresh() }
             StatisticScreen(
                 uiState     = statisticViewModel.uiState.collectAsState().value,
-                onBackClick = { nav.popBack() }
+                onBackClick = { nav.popBackTo(Screen.MainScreen.route) }
             )
         }
 
@@ -86,7 +86,7 @@ fun ScreenContent(
             LaunchedEffect(route) { historyViewModel.refresh() }
             HistoryScreen(
                 uiState     = historyViewModel.uiState.collectAsState().value,
-                onBackClick = { nav.popBack() },
+                onBackClick = { nav.popBackTo(Screen.MainScreen.route) },
                 onCardClick = { historyViewModel.toggleExpand(it) }
             )
         }
@@ -94,7 +94,7 @@ fun ScreenContent(
         Screen.SettingScreen.route -> {
             SettingScreen(
                 uiState                 = settingViewModel.uiState.collectAsState().value,
-                onBackClick             = { nav.popBack() },
+                onBackClick             = { nav.popBackTo(Screen.MainScreen.route) },
                 onCacheClick            = { settingViewModel.clearCache() },
                 onNotificationChange    = { settingViewModel.updateNotificationEnabled(it) },
                 onDarkModeChange        = { settingViewModel.updateDarkMode(it) },

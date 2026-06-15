@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.example.everydayenglish.data.Repository.AppPreferencesRepository
 import com.example.everydayenglish.data.Repository.AttemptRepository
 import com.example.everydayenglish.data.Repository.UserProfileRepository
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
@@ -27,30 +28,31 @@ class MainViewModel(
 
     val uiState = _uiState.asStateFlow()
 
-    init {
-        loadUserInfo()
-    }
+    private var observeJob: Job? = null
 
-    private fun loadUserInfo() {
-        viewModelScope.launch {
+    fun refresh() {
+        observeJob?.cancel()
+        observeJob = viewModelScope.launch {
             val userId = appPreferencesRepository.getUserId()
-            var profile = userProfileRepository.getUserProfile(userId)
-
-            if (profile != null) {
+            if (userId.isBlank()) return@launch
+            userProfileRepository.observeUserProfile(userId).collect { profile ->
+                if (profile == null) return@collect
                 if (isNewDay(profile.lastStudiedDate) && profile.todayProgress > 0) {
                     userProfileRepository.updateTodayProgress(0, System.currentTimeMillis(), userId)
-                    profile = profile.copy(todayProgress = 0)
-                }
-                _uiState.update {
-                    it.copy(
-                        todayProgress = profile.todayProgress,
-                        dailyGoal     = profile.dailyGoal,
-                        userAvatar    = profile.avatarUri,
-                    )
+                } else {
+                    _uiState.update {
+                        it.copy(
+                            todayProgress = profile.todayProgress,
+                            dailyGoal     = profile.dailyGoal,
+                            userAvatar    = profile.avatarUri,
+                        )
+                    }
                 }
             }
         }
     }
+
+
 
     private fun isNewDay(lastMs: Long): Boolean {
         if (lastMs == 0L) return true   // 旧数据没记录日期，保守起见也重置
@@ -60,9 +62,6 @@ class MainViewModel(
         cal.set(Calendar.SECOND, 0)
         cal.set(Calendar.MILLISECOND, 0)
         return lastMs < cal.timeInMillis
-    }
-    fun refresh(){
-        loadUserInfo()
     }
 }
 

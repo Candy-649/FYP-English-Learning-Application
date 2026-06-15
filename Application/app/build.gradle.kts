@@ -94,6 +94,7 @@ dependencies {
     implementation(libs.okhttp)
     implementation(platform("com.google.firebase:firebase-bom:34.14.1"))
     implementation("com.google.firebase:firebase-analytics")
+    implementation(libs.markwon.core)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)

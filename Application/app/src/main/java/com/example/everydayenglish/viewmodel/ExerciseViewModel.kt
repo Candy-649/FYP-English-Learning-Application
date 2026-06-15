@@ -6,9 +6,11 @@ import com.example.everydayenglish.adaptiveEngine.TenseCategory
 import com.example.everydayenglish.data.Repository.AppPreferencesRepository
 import com.example.everydayenglish.data.Repository.AttemptRepository
 import com.example.everydayenglish.data.Repository.BanditRepository
+import com.example.everydayenglish.data.Repository.DailyCompletionRepository
 import com.example.everydayenglish.data.Repository.ExerciseRepository
 import com.example.everydayenglish.data.Repository.RecordRepository
 import com.example.everydayenglish.data.Repository.UserProfileRepository
+import com.example.everydayenglish.data.entity.DailyCompletion
 import com.example.everydayenglish.data.entity.ExerciseRecord
 import com.example.everydayenglish.data.entity.ExerciseWithReferenceAnswers
 import com.example.everydayenglish.data.entity.QuestionAttempt
@@ -52,7 +54,8 @@ class ExerciseViewModel(
     private val attemptRepository: AttemptRepository,
     private val grammarChecker: GrammarChecker,
     private val semanticChecker: SemanticChecker,
-    private val feedbackGenerator: FeedbackGenerator
+    private val feedbackGenerator: FeedbackGenerator,
+    private val dailyCompletionRepository: DailyCompletionRepository
 ) : ViewModel() {
 
     private val userId: String
@@ -221,32 +224,31 @@ class ExerciseViewModel(
                 return@launch
             }
             //Deepseek Feedback
-            val feedbackText = try {
+            val evalResult = try {
                 feedbackGenerator.generate(
-                    userAnswer = userAnswer,
+                    userAnswer       = userAnswer,
                     referenceAnswers = referenceTexts,
-                    grammarSummary = grammarResult.summary,
-                    semanticScore = semanticResult.score
+                    grammarSummary   = grammarResult.summary,
+                    semanticScore    = semanticResult.score
                 )
-            } catch (e: Exception){
-                null
-            }
+            } catch (e: Exception) { null }
+
             recordRepository.updateEvaluation(
-                recordId = recordId.toInt(),
-                score = semanticResult.score,
-                feedback = feedbackText ?: "",
-                isCorrect = semanticResult.isCorrect
+                recordId  = recordId.toInt(),
+                score     = semanticResult.score,
+                feedback  = evalResult?.feedback ?: "",
+                isCorrect = evalResult?.isCorrect ?: semanticResult.isCorrect  // fallback 到 HF
             )
             viewModelScope.launch { retryPendingEvaluations() }
 
             _uiState.update {
                 it.copy(
                     feedbackState = it.feedbackState?.copy(
-                        isCorrect = semanticResult.isCorrect,
+                        isCorrect     = evalResult?.isCorrect ?: semanticResult.isCorrect,
                         semanticScore = semanticResult.score,
-                        feedback = feedbackText,
+                        feedback      = evalResult?.feedback,
                         isFeedbackLoading = false,
-                        isEvaluating = false
+                        isEvaluating  = false
                     )
                 )
             }
@@ -263,20 +265,20 @@ class ExerciseViewModel(
 
             try {
                 val semanticResult = semanticChecker.evaluate(record.userAnswer, referenceTexts)
-                val feedbackText = try {
+                val evalResult = try {
                     feedbackGenerator.generate(
-                        userAnswer = record.userAnswer,
+                        userAnswer       = record.userAnswer,
                         referenceAnswers = referenceTexts,
-                        grammarSummary = record.grammar ?: "",
-                        semanticScore = semanticResult.score
+                        grammarSummary   = record.grammar ?: "",
+                        semanticScore    = semanticResult.score
                     )
                 } catch (e: Exception) { null }
 
                 recordRepository.updateEvaluation(
-                    recordId = record.recordId,
-                    score = semanticResult.score,
-                    feedback = feedbackText ?: "",
-                    isCorrect = semanticResult.isCorrect
+                    recordId  = record.recordId,
+                    score     = semanticResult.score,
+                    feedback  = evalResult?.feedback ?: "",
+                    isCorrect = evalResult?.isCorrect ?: semanticResult.isCorrect
                 )
             } catch (e: Exception) {
                 continue
@@ -321,6 +323,10 @@ class ExerciseViewModel(
 
             if (newAnswered >= state.dailyGoal) {
                 userProfileRepository.incrementStudyDays(userId)
+                val today = java.time.LocalDate.now().toEpochDay().toInt()
+                dailyCompletionRepository.insert(
+                    DailyCompletion(userId = userId, dateEpochDay = today, completed = true)
+                )
                 _uiState.update {
                     it.copy(
                         todayProgress   = newProgress,
@@ -337,7 +343,6 @@ class ExerciseViewModel(
                         todayProgress = newProgress,
                         totalAnswered = newAnswered,
                         correctCount  = newCorrect,
-                        currentIndex  = state.currentIndex + 1,
                         currentTries  = 0,
                         feedbackState = null
                     )

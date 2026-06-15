@@ -15,10 +15,14 @@ class CustomNavController(startRoute: String){
     }
 
     fun popBack(): Boolean {
-        return if (canGoBack) { stack.removeLast(); true } else false
+        return if (canGoBack) { stack.removeAt(stack.size - 1); true } else false
     }
 
     fun popBackTo(route: String) {
-        while (stack.last() != route && stack.size > 1) stack.removeLast()
+        while (stack.last() != route && stack.size > 1) stack.removeAt(stack.size - 1)
+    }
+    fun popRoute(route: String) {
+        val index = stack.indexOfLast { it == route }
+        if (index >= 0) stack.removeAt(index)
     }
 }

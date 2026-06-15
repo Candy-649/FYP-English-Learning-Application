@@ -1,5 +1,6 @@
 package com.example.everydayenglish.onlineEvaluation
 
+import com.example.everydayenglish.data.entity.EvaluationResult
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType
@@ -23,30 +24,29 @@ class DeepSeekFeedbackGenerator(
     private val JSON_TYPE = "application/json; charset=utf-8".toMediaType()
 
     private val SYSTEM_PROMPT = """
-        You are a friendly English grammar teacher giving feedback to a student.
-        You will receive:
-        - The student's answer
-        - One or more reference (correct) answers
-        - A grammar check result (may be null if unavailable)
-        - A semantic similarity score (0.0 = completely wrong meaning, 1.0 = correct meaning)
+    You are an English teacher evaluating a student's answer.
+    You will receive:
+    - The student's answer
+    - One or more reference answers
+    - A grammar check result
+    - A semantic similarity score (0.0 = completely different meaning, 1.0 = identical meaning)
 
-        Your task: Write 1–2 encouraging sentences that:
-        1. Acknowledge what the student got right (if anything).
-        2. Briefly explain the key issue (grammar or meaning), referencing the reference answer.
-        3. Show the student how to correct or improve their answer.
+    First, decide: if the student's answer is mostly correct in meaning with only minor grammar issues, judge it as correct. If the meaning is far from the reference or there are serious grammar errors, judge it as incorrect.
 
-        Rules:
-        - Be concise and encouraging, never harsh.
-        - Do NOT repeat the score number in your response.
-        - Respond in plain text only. No JSON, no markdown.
-    """.trimIndent()
+    Then write 1–2 sentences of feedback to guide the student toward better grammar and closer meaning.
+    You may reference specific words or phrases from the reference answer as hints to guide the student, but do not reproduce the full reference answer verbatim.
+    Use markdown formatting in your feedback, so that important points can stand out.
+    
+    Respond ONLY with valid JSON in this exact format:
+    {"isCorrect": true, "feedback": "..."}
+""".trimIndent()
 
     override suspend fun generate(
-        userAnswer       : String,
-        referenceAnswers : List<String>,
-        grammarSummary   : String?,
-        semanticScore    : Double
-    ): String = withContext(Dispatchers.IO) {
+        userAnswer: String,
+        referenceAnswers: List<String>,
+        grammarSummary: String?,
+        semanticScore: Double
+    ): EvaluationResult = withContext(Dispatchers.IO) {
         callDeepSeekApi(userAnswer, referenceAnswers, grammarSummary, semanticScore)
     }
 
@@ -55,7 +55,7 @@ class DeepSeekFeedbackGenerator(
         referenceAnswers : List<String>,
         grammarSummary   : String?,
         semanticScore    : Double
-    ): String {
+    ): EvaluationResult {
         val refBlock = referenceAnswers
             .mapIndexed { i, ref -> "${i + 1}. $ref" }
             .joinToString("\n")
@@ -68,21 +68,21 @@ class DeepSeekFeedbackGenerator(
         }
 
         val userContent = """
-            Student's answer: "$userAnswer"
+        Student's answer: "$userAnswer"
 
-            Reference answer(s):
-            $refBlock
+        Reference answer(s):
+        $refBlock
 
-            Grammar check: ${grammarSummary ?: "Not available."}
-            Meaning assessment: $meaningLevel
+        Grammar check: ${grammarSummary ?: "Not available."}
+        Meaning assessment: $meaningLevel
 
-            Please provide brief, encouraging teaching feedback.
-        """.trimIndent()
+        Please provide brief, encouraging teaching feedback.
+    """.trimIndent()
 
         val body = JSONObject().apply {
             put("model", "deepseek-chat")
             put("max_tokens", 120)
-            put("temperature", 0.3)  // 教学场景略提温度，措辞更自然
+            put("temperature", 0.3)
             put("messages", JSONArray().apply {
                 put(JSONObject().apply {
                     put("role", "system")
@@ -109,11 +109,17 @@ class DeepSeekFeedbackGenerator(
             resp.body!!.string()
         }
 
-        return JSONObject(responseText)
+        val content = JSONObject(responseText)
             .getJSONArray("choices")
             .getJSONObject(0)
             .getJSONObject("message")
             .getString("content")
             .trim()
+
+        val json = JSONObject(content)
+        return EvaluationResult(
+            isCorrect = json.getBoolean("isCorrect"),
+            feedback  = json.getString("feedback")
+        )
     }
 }

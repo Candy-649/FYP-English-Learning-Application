@@ -1,5 +1,6 @@
 package com.example.everydayenglish.ui
 
+import android.widget.TextView
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -63,11 +64,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ModifierLocalBeyondBoundsLayout
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.dimensionResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.viewinterop.AndroidView
 import com.example.everydayenglish.R
 import com.example.everydayenglish.data.entity.Exercise
 import com.example.everydayenglish.data.entity.ExerciseWithReferenceAnswers
@@ -77,6 +80,7 @@ import com.example.everydayenglish.viewmodel.ArmDebugInfo
 import com.example.everydayenglish.viewmodel.ExerciseUiState
 import com.example.everydayenglish.viewmodel.FeedbackState
 import com.example.everydayenglish.viewmodel.SelectionStepLog
+import io.noties.markwon.Markwon
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -266,17 +270,8 @@ private fun FeedbackDialog(
                     .heightIn(max = 360.dp)
                     .verticalScroll(scrollState)
                     .padding(vertical = 4.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)) {
-
-                // Reference
-                feedback.matchedReferenceAnswer?.reference?.let { ref ->
-                    Text(
-                        text  = "Reference: $ref",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
                 when {
                     feedback.evaluationOffline -> {
                         Text(
@@ -302,22 +297,16 @@ private fun FeedbackDialog(
                         }
                     }
                     feedback.isFeedbackLoading -> {
-                        feedback.semanticScore?.let { score ->
-                            Text(
-                                text = "Similarity: ${"%.0f".format(score * 100)}%",
-                                style = MaterialTheme.typography.bodySmall
-                            )
-                        }
                         Row(
-                            verticalAlignment = Alignment.CenterVertically,
+                            verticalAlignment     = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             CircularProgressIndicator(
-                                modifier = Modifier.size(12.dp),
+                                modifier    = Modifier.size(12.dp),
                                 strokeWidth = 2.dp
                             )
                             Text(
-                                text = "Generating feedback...",
+                                text  = "Generating feedback...",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.outline
                             )
@@ -325,35 +314,19 @@ private fun FeedbackDialog(
                     }
                     else -> {
                         feedback.feedback?.let {
-                            Text(
-                                it,
-                                style = MaterialTheme.typography.bodyLarge
-                                )
-                        }
-                        feedback.semanticScore?.let { score ->
-                            Text(
-                                text = "Similarity: ${"%.0f".format(score * 100)}%",
-                                style = MaterialTheme.typography.bodySmall
+                            MarkdownText(
+                                markdown = it,
+                                modifier = Modifier.fillMaxWidth()
                             )
                         }
                     }
-                }
-
-                // Grammar — 始终显示（SmartGrammarChecker 离线也能跑）
-                feedback.grammar?.let {
-                    Text(
-                        text  = "Grammar: $it",
-                        style = MaterialTheme.typography.bodyMedium
-                    )
                 }
             }
         },
         confirmButton = {
             when {
                 feedback.evaluationOffline || feedback.isEvaluating || feedback.isFeedbackLoading -> {
-                    TextButton(onClick = onNext) {
-                        Text("Next")
-                    }
+                    TextButton(onClick = onNext) { Text("Next") }
                 }
                 feedback.isCorrect == true -> {
                     TextButton(onClick = onNext) { Text("Next") }
@@ -368,6 +341,17 @@ private fun FeedbackDialog(
                 }
             }
         }
+    )
+}
+
+@Composable
+fun MarkdownText(markdown: String, modifier: Modifier = Modifier) {
+    val context = LocalContext.current
+    val markwon = remember { Markwon.create(context) }
+    AndroidView(
+        modifier = modifier,
+        factory  = { TextView(it) },
+        update   = { markwon.setMarkdown(it, markdown) }
     )
 }
 @Composable

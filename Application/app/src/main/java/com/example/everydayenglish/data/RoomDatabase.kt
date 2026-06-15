@@ -5,11 +5,13 @@ import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
+import com.example.everydayenglish.data.dao.DailyCompletionDao
 import com.example.everydayenglish.data.dao.ExerciseDao
 import com.example.everydayenglish.data.dao.ExerciseRecordDao
 import com.example.everydayenglish.data.dao.QuestionAttemptDao
 import com.example.everydayenglish.data.dao.ReferenceAnswerDao
 import com.example.everydayenglish.data.dao.UserProfileDao
+import com.example.everydayenglish.data.entity.DailyCompletion
 import com.example.everydayenglish.data.entity.Exercise
 import com.example.everydayenglish.data.entity.ExerciseRecord
 import com.example.everydayenglish.data.entity.QuestionAttempt
@@ -23,9 +25,10 @@ import com.example.everydayenglish.data.typeConverter.UriTypeConverter
         ExerciseRecord::class,
         UserProfile::class,
         ReferenceAnswer::class,
-        QuestionAttempt::class
+        QuestionAttempt::class,
+        DailyCompletion::class
     ],
-    version = 1,
+    version = 2,
     exportSchema = false
 )
 @TypeConverters(UriTypeConverter::class)
@@ -35,5 +38,6 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun profileDao(): UserProfileDao
     abstract fun referenceAnswerDao(): ReferenceAnswerDao
     abstract fun questionAttemptDao(): QuestionAttemptDao
+    abstract fun dailyCompletionDao(): DailyCompletionDao
 
 }

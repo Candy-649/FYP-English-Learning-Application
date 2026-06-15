@@ -10,6 +10,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.everydayenglish.data.PainterDefaults
 import com.example.everydayenglish.data.Repository.AppPreferencesRepository
+import com.example.everydayenglish.data.Repository.DailyCompletionRepository
 import com.example.everydayenglish.data.Repository.UserProfileRepository
 import com.example.everydayenglish.data.entity.UserProfile
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -20,7 +21,8 @@ import kotlin.math.ln
 
 class ProfileViewModel(
     private val userProfileRepository: UserProfileRepository,
-    private val appPreferencesRepository: AppPreferencesRepository
+    private val appPreferencesRepository: AppPreferencesRepository,
+    private val dailyCompletionRepository: DailyCompletionRepository
 ) : ViewModel() {
 
     fun refresh(){
@@ -47,6 +49,8 @@ class ProfileViewModel(
             try {
                 val userId = appPreferencesRepository.getUserId()
                 val profile = userProfileRepository.getUserProfile(userId) ?: return@launch
+                val completedDays = dailyCompletionRepository.getCompletedDays(userId)
+                val streak = calculateStreak(completedDays)
                 _uiState.update { current ->
                     Log.d("ProfileVM", "loadProfile updating userAvatar: ${profile.avatarUri}")
                     current.copy(
@@ -56,13 +60,24 @@ class ProfileViewModel(
                         profileBackground = if (isEditing) current.profileBackground else profile.profileBackgroundUri,
                         totalStudyDays = profile.totalStudyDays,
                         totalSentencesCompleted = profile.totalSentencesCompleted,
-                        currentStreak = profile.currentStreak,
+                        currentStreak = streak,
                         dailyGoal = profile.dailyGoal,
                         todayProgress = profile.todayProgress
                     )
                 }
             } catch (_: Exception) { }
         }
+    }
+
+    private fun calculateStreak(days: List<Int>): Int {
+        if (days.isEmpty()) return 0
+        val today = java.time.LocalDate.now().toEpochDay().toInt()
+        var streak = 0
+        var expected = today
+        for (day in days) {
+            if (day == expected) { streak++; expected-- } else break
+        }
+        return streak
     }
 
     fun updateUserName(name: String) {

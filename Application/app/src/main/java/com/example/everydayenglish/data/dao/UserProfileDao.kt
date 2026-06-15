@@ -6,6 +6,7 @@ import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Update
 import com.example.everydayenglish.data.entity.UserProfile
+import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface UserProfileDao {
@@ -33,4 +34,6 @@ interface UserProfileDao {
     suspend fun updateSentenceCount(count: Int, userId: String)
     @Query("UPDATE user_profiles SET dailyGoal = :goal WHERE userId = :userId")
     suspend fun updateDailyGoal(goal: Int, userId: String)
+    @Query("SELECT * FROM user_profiles WHERE userId = :userId")
+    fun observeUserProfile(userId: String): Flow<UserProfile?>
 }

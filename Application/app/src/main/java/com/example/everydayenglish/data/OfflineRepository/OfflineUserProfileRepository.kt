@@ -3,6 +3,7 @@ package com.example.everydayenglish.data.OfflineRepository
 import com.example.everydayenglish.data.Repository.UserProfileRepository
 import com.example.everydayenglish.data.dao.UserProfileDao
 import com.example.everydayenglish.data.entity.UserProfile
+import kotlinx.coroutines.flow.Flow
 
 class OfflineUserProfileRepository(
     private val userProfileDao: UserProfileDao
@@ -32,4 +33,6 @@ class OfflineUserProfileRepository(
         userProfileDao.updateSentenceCount(count, userId)
     override suspend fun updateDailyGoal(goal: Int, userId: String) =
         userProfileDao.updateDailyGoal(goal, userId)
+    override fun observeUserProfile(userId: String): Flow<UserProfile?> =
+        userProfileDao.observeUserProfile(userId)
 }

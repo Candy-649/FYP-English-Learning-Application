@@ -37,14 +37,16 @@ object AppViewModelProvider {
                 attemptRepository        = everydayEnglishApplication().container.attemptRepository,
                 grammarChecker           = everydayEnglishApplication().container.grammarChecker,
                 semanticChecker          = everydayEnglishApplication().container.semanticChecker,
-                feedbackGenerator = everydayEnglishApplication().container.feedbackGenerator
+                feedbackGenerator = everydayEnglishApplication().container.feedbackGenerator,
+                dailyCompletionRepository = everydayEnglishApplication().container.dailyCompletionRepository
             )
         }
 
         initializer {
             ProfileViewModel(
                 everydayEnglishApplication().container.userProfileRepository,
-                everydayEnglishApplication().container.appPreferencesRepository
+                everydayEnglishApplication().container.appPreferencesRepository,
+                dailyCompletionRepository = everydayEnglishApplication().container.dailyCompletionRepository
             )
         }
 

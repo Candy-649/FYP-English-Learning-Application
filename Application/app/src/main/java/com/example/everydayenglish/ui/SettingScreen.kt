@@ -194,7 +194,7 @@ fun SettingScreen(
                             onCacheClick
                     )
 
-                    SettingsSwitchItem(
+                    /*SettingsSwitchItem(
 
                         text = "Notification",
 
@@ -203,7 +203,7 @@ fun SettingScreen(
 
                         onCheckedChange =
                             onNotificationChange
-                    )
+                    )*/
 
                     SettingsInfoItem(
                         text = "Dark Mode",

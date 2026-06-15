@@ -6,12 +6,14 @@ import androidx.room.Room
 import com.example.everydayenglish.data.OfflineRepository.OfflineAppPreferencesRepository
 import com.example.everydayenglish.data.OfflineRepository.OfflineAttemptRepository
 import com.example.everydayenglish.data.OfflineRepository.OfflineBanditRepository
+import com.example.everydayenglish.data.OfflineRepository.OfflineDailyCompletionRepository
 import com.example.everydayenglish.data.OfflineRepository.OfflineExerciseRepository
 import com.example.everydayenglish.data.OfflineRepository.OfflineRecordRepository
 import com.example.everydayenglish.data.OfflineRepository.OfflineUserProfileRepository
 import com.example.everydayenglish.data.Repository.AppPreferencesRepository
 import com.example.everydayenglish.data.Repository.AttemptRepository
 import com.example.everydayenglish.data.Repository.BanditRepository
+import com.example.everydayenglish.data.Repository.DailyCompletionRepository
 import com.example.everydayenglish.data.Repository.ExerciseRepository
 import com.example.everydayenglish.data.Repository.RecordRepository
 import com.example.everydayenglish.data.Repository.UserProfileRepository
@@ -33,6 +35,7 @@ interface AppContainer {
     val grammarChecker          : GrammarChecker
     val semanticChecker         : SemanticChecker
     val feedbackGenerator: FeedbackGenerator
+    val dailyCompletionRepository: DailyCompletionRepository
 }
 
 class AppDataContainer(context: Context) : AppContainer {
@@ -75,4 +78,6 @@ class AppDataContainer(context: Context) : AppContainer {
         HuggingFaceSemanticChecker(apiToken = BuildConfig.HF_API_TOKEN)
     override val feedbackGenerator: FeedbackGenerator =
         DeepSeekFeedbackGenerator(apiKey = BuildConfig.DEEPSEEK_API_KEY)
+    override val dailyCompletionRepository: DailyCompletionRepository =
+        OfflineDailyCompletionRepository(database.dailyCompletionDao())
 }
