@@ -67,7 +67,7 @@ class HuggingFaceSemanticChecker(
         }.toString()
 
         val request = Request.Builder()
-            .url(apiUrl)  // 新 URL 不变
+            .url(apiUrl)
             .addHeader("Authorization", "Bearer $apiToken")
             .addHeader("Content-Type", "application/json")
             .post(body.toRequestBody(JSON_TYPE))

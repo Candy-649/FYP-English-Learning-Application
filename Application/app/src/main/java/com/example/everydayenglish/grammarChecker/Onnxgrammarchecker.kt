@@ -8,6 +8,7 @@ import android.util.Log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.Closeable
+import java.io.File
 import java.nio.LongBuffer
 import kotlin.math.exp
 
@@ -30,16 +31,8 @@ class OnnxGrammarChecker(
                 .also { sessionInstance = it }
         }
 
-    private fun getOrCopyModelFile(): java.io.File {
-        val dest = java.io.File(context.filesDir, modelFile)
-        if (!dest.exists()) {
-            context.assets.open(modelFile).use { input ->
-                dest.outputStream().use { output ->
-                    input.copyTo(output)   // 流式 copy，不会 OOM
-                }
-            }
-        }
-        return dest
+    private fun getOrCopyModelFile(): File {
+        return File(context.filesDir, modelFile)
     }
 
     private val tokenizer: BertTokenizer by lazy { BertTokenizer(context) }

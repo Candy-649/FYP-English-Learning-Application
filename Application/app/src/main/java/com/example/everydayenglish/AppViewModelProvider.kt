@@ -22,7 +22,8 @@ object AppViewModelProvider {
             SplashViewModel(
                 everydayEnglishApplication().container.exerciseRepository,
                 everydayEnglishApplication().container.userProfileRepository,
-                everydayEnglishApplication().container.appPreferencesRepository
+                everydayEnglishApplication().container.appPreferencesRepository,
+                context = everydayEnglishApplication()
             )
         }
 

@@ -64,6 +64,7 @@ class ExerciseViewModel(
 
     init {
         loadSession()
+        viewModelScope.launch { retryPendingEvaluations() }
     }
 
 
@@ -236,6 +237,7 @@ class ExerciseViewModel(
                 feedback = feedbackText ?: "",
                 isCorrect = semanticResult.isCorrect
             )
+            viewModelScope.launch { retryPendingEvaluations() }
 
             _uiState.update {
                 it.copy(
@@ -247,6 +249,37 @@ class ExerciseViewModel(
                         isEvaluating = false
                     )
                 )
+            }
+        }
+    }
+    private suspend fun retryPendingEvaluations() {
+        val pending = recordRepository.getPendingRecords()
+        if (pending.isEmpty()) return
+
+        for (record in pending) {
+            val exercise = exerciseRepository
+                .getExercisesWithReferenceAnswersById(record.promptId)
+            val referenceTexts = exercise.answers.map { it.reference }
+
+            try {
+                val semanticResult = semanticChecker.evaluate(record.userAnswer, referenceTexts)
+                val feedbackText = try {
+                    feedbackGenerator.generate(
+                        userAnswer = record.userAnswer,
+                        referenceAnswers = referenceTexts,
+                        grammarSummary = record.grammar ?: "",
+                        semanticScore = semanticResult.score
+                    )
+                } catch (e: Exception) { null }
+
+                recordRepository.updateEvaluation(
+                    recordId = record.recordId,
+                    score = semanticResult.score,
+                    feedback = feedbackText ?: "",
+                    isCorrect = semanticResult.isCorrect
+                )
+            } catch (e: Exception) {
+                continue
             }
         }
     }

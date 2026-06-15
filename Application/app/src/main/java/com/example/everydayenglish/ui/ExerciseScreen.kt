@@ -140,7 +140,7 @@ fun ExerciseScreen(
                         )
                     }
                 },
-                actions = {
+                /*actions = {
                     IconButton(onClick = onToggleDebug) {
                         Icon(
                             imageVector = Icons.Default.BugReport,
@@ -151,7 +151,7 @@ fun ExerciseScreen(
                                 MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
                         )
                     }
-                },
+                },*/
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.primaryContainer
                 )
@@ -212,7 +212,7 @@ fun ExerciseScreen(
                 }
             }
 
-            AnimatedVisibility(
+            /*AnimatedVisibility(
                 visible = uiState.showDebugPanel,
                 modifier = Modifier.align(Alignment.BottomEnd),
                 enter = slideInVertically { it } + fadeIn(),
@@ -225,7 +225,7 @@ fun ExerciseScreen(
                         .fillMaxWidth()
                         .fillMaxHeight(0.45f)
                 )
-            }
+            }*/
         }
     }
 
@@ -272,7 +272,7 @@ private fun FeedbackDialog(
                 feedback.matchedReferenceAnswer?.reference?.let { ref ->
                     Text(
                         text  = "Reference: $ref",
-                        style = MaterialTheme.typography.bodyLarge,
+                        style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
@@ -324,7 +324,12 @@ private fun FeedbackDialog(
                         }
                     }
                     else -> {
-                        feedback.feedback?.let { Text(it) }
+                        feedback.feedback?.let {
+                            Text(
+                                it,
+                                style = MaterialTheme.typography.bodyLarge
+                                )
+                        }
                         feedback.semanticScore?.let { score ->
                             Text(
                                 text = "Similarity: ${"%.0f".format(score * 100)}%",

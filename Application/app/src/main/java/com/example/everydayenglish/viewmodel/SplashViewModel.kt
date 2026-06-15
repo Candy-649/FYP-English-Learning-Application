@@ -1,5 +1,6 @@
 package com.example.everydayenglish.viewmodel
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
@@ -8,6 +9,7 @@ import com.example.everydayenglish.data.Repository.AppPreferencesRepository
 import com.example.everydayenglish.data.Repository.ExerciseRepository
 import com.example.everydayenglish.data.Repository.UserProfileRepository
 import com.example.everydayenglish.data.entity.UserProfile
+import com.example.everydayenglish.grammarChecker.ModelDownloader
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -18,7 +20,8 @@ import java.util.UUID
 class SplashViewModel(
     private val exerciseRepository: ExerciseRepository,
     private val userProfileRepository: UserProfileRepository,
-    private val appPreferencesRepository: AppPreferencesRepository
+    private val appPreferencesRepository: AppPreferencesRepository,
+    private val context: Context
 ) : ViewModel() {
 
     private val _progress = MutableStateFlow(0)
@@ -43,6 +46,16 @@ class SplashViewModel(
 
     private suspend fun initializeApp() {
         val steps = listOf(
+            Step(weight = 3) {
+                if (!ModelDownloader.isModelReady(context)) {
+                    _statusText.value = "Downloading grammar model..."
+                    val success = ModelDownloader.ensureModel(context)
+                    if (!success) {
+                        _statusText.value = "Grammar model unavailable offline."
+                        delay(1500L)
+                    }
+                }
+            },
             Step(weight = 2) {
                 _statusText.value = "Checking exercises..."
                 val exercises = exerciseRepository.getExercisesWithReferenceAnswers()

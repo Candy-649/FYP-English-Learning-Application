@@ -47,8 +47,8 @@ fun SplashScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .padding(32.dp)
-            .background(MaterialTheme.colorScheme.background),
+            .background(MaterialTheme.colorScheme.background)
+            .padding(32.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
