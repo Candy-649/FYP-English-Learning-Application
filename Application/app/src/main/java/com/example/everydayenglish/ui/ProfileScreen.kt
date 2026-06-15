@@ -10,6 +10,12 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -577,7 +583,8 @@ fun BubbleCloud(bubbles: List<ProfileBubble>) {
             }
         }
 
-        val expandedRadius = maxWidth * 3f / 8f  // 3/4直径的半径
+        //报错过，需要防止height太矮
+        val expandedRadius = minOf(maxWidth, maxHeight) * 3f / 8f
 
         val expandedCenters = remember(anchorCenters, expandedRadius) {
             anchorCenters.map { (cx, cy) ->
@@ -607,13 +614,31 @@ fun BubbleCloud(bubbles: List<ProfileBubble>) {
                     label = "cy"
                 )
 
+                //动态
+                val floatTransition = rememberInfiniteTransition(label = "float_$index")
+                val amplitude = minOf(4f + index * 1.5f, 8f)
+                val floatY by floatTransition.animateFloat(
+                    initialValue = -amplitude,
+                    targetValue = amplitude,
+                    animationSpec = infiniteRepeatable(
+                        animation = tween(
+                            durationMillis = 1800 + index * 300,
+                            easing = FastOutSlowInEasing
+                        ),
+                        repeatMode = RepeatMode.Reverse
+                    ),
+                    label = "float_y_$index"
+                )
+                //防止动画冲突
+                val floatOffset = if (selectedBubble == null) floatY.dp else 0.dp
+
                 BubbleItem(
                     bubble = bubble,
                     selected = selected,
                     dimmed = selectedBubble != null && !selected,
                     onClick = { selectedBubble = if (selected) null else bubble },
                     modifier = Modifier
-                        .offset(x = animCx - animRadius, y = animCy - animRadius)
+                        .offset(x = animCx - animRadius, y = animCy - animRadius + floatOffset)
                         .size(animRadius * 2)
                 )
             }

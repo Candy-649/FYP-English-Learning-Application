@@ -1,40 +1,53 @@
 package com.example.everydayenglish
 
+import android.content.pm.ActivityInfo
+import android.content.res.Configuration
+import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.width
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
+import androidx.core.net.toUri
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.navigation.NavHostController
-import androidx.navigation.compose.NavHost
-import androidx.navigation.compose.composable
-import androidx.navigation.compose.rememberNavController
 import com.example.everydayenglish.data.PainterDefaults
-import com.example.everydayenglish.ui.ExerciseScreen
-import com.example.everydayenglish.ui.MainScreen
-import com.example.everydayenglish.ui.ProfileScreen
-import com.example.everydayenglish.ui.SettingScreen
-import com.example.everydayenglish.ui.SplashScreen
-import com.example.everydayenglish.ui.StatisticScreen
+import com.example.everydayenglish.navigation.CustomNavController
+import com.example.everydayenglish.navigation.ScreenContent
 import com.example.everydayenglish.ui.theme.EverydayEnglishTheme
+import com.example.everydayenglish.viewmodel.DarkModeOption
 import com.example.everydayenglish.viewmodel.ExerciseViewModel
+import com.example.everydayenglish.viewmodel.HistoryViewModel
 import com.example.everydayenglish.viewmodel.MainViewModel
 import com.example.everydayenglish.viewmodel.ProfileViewModel
 import com.example.everydayenglish.viewmodel.SettingViewModel
 import com.example.everydayenglish.viewmodel.SplashViewModel
 import com.example.everydayenglish.viewmodel.StatisticViewModel
-import com.example.everydayenglish.viewmodel.toBubbles
-import androidx.core.net.toUri
-import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
-import androidx.lifecycle.compose.LifecycleResumeEffect
-import com.example.everydayenglish.ui.HistoryScreen
-import com.example.everydayenglish.viewmodel.DarkModeOption
-import com.example.everydayenglish.viewmodel.HistoryViewModel
 
 sealed class Screen(val route: String){
     object MainScreen: Screen("main")
@@ -47,25 +60,33 @@ sealed class Screen(val route: String){
 
 }
 
+@Suppress("DEPRECATION")
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         installSplashScreen()
         super.onCreate(savedInstanceState)
+
+        val isTablet = resources.configuration.smallestScreenWidthDp >= 600
+        if (!isTablet){
+            requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+        }
         enableEdgeToEdge()
         PainterDefaults.defaultAvatarUri =
             "android.resource://${packageName}/${R.drawable.default_avatar}".toUri()
         PainterDefaults.defaultProfileBackgroundUri =
             "android.resource://${packageName}/${R.drawable.default_profile_background}".toUri()
+        window.navigationBarColor = android.graphics.Color.TRANSPARENT
         setContent {
             AppNavigation()
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            window.setBackgroundBlurRadius(40)
         }
     }
 }
 
 @Composable
-fun AppNavigation(
-    navController: NavHostController = rememberNavController()
-){
+fun AppNavigation(){
     val splashViewModel: SplashViewModel = viewModel(factory = AppViewModelProvider.Factory)
     val exerciseViewModel: ExerciseViewModel = viewModel(factory = AppViewModelProvider.Factory)
     val profileViewModel: ProfileViewModel = viewModel(factory = AppViewModelProvider.Factory)
@@ -81,131 +102,97 @@ fun AppNavigation(
     }
 
     EverydayEnglishTheme(darkTheme = darkTheme) {
-        NavHost(
-            navController = navController,
-            startDestination = Screen.SplashScreen.route
-        ){
-            composable(Screen.MainScreen.route){
-                LifecycleResumeEffect(Unit){
-                    mainViewModel.refresh()
-                    onPauseOrDispose{}
-                }
-                MainScreen(
-                    uiState = mainViewModel.uiState.collectAsState().value,
-                    onProfileClick = {
-                        navController.navigate(Screen.ProfileScreen.route)
-                    },
-                    onStudyClick = {
-                        navController.navigate(Screen.ExerciseScreen.route)
-                    },
-                    onStatisticClick = {
-                        navController.navigate(Screen.StatisticScreen.route)
-                    },
-                    onHistoryClick = {
-                        navController.navigate(Screen.HistoryScreen.route)
-                    },
-                    onSettingClick = {
-                        navController.navigate(Screen.SettingScreen.route)
-                    }
-                )
-            }
-            composable(Screen.ExerciseScreen.route){
-                val uiState = exerciseViewModel.uiState.collectAsState()
-                ExerciseScreen(
-                    uiState          = uiState.value,
-                    onAnswerChange   = { exerciseViewModel.updateUserAnswer(it) },
-                    onSubmit         = { exerciseViewModel.submitAnswer() },
-                    onNext           = { exerciseViewModel.finishCurrentQuestion() },
-                    onRetry          = { exerciseViewModel.dismissFeedback() },
-                    onGiveUp         = { exerciseViewModel.finishCurrentQuestion(gaveUp = true) },
-                    onReturn         = { navController.popBackStack() },
-                    onRestartSession = { exerciseViewModel.restartSession() },
-                    onToggleDebug    = { exerciseViewModel.toggleDebugPanel() }
-                )
-            }
-            composable(Screen.ProfileScreen.route) {
-                LifecycleResumeEffect(Unit) {
-                    profileViewModel.refresh()
-                    onPauseOrDispose {}
-                }
-                val uiState = profileViewModel.uiState.collectAsState().value
-                ProfileScreen(
-                    uiState = uiState,
-                    bubbles = uiState.toBubbles(),
-                    onBackClick = {
-                        navController.popBackStack(Screen.MainScreen.route, inclusive = false)
-                    },
-                    onUserNameChange = profileViewModel::updateUserName,
-                    onBioChange = profileViewModel::updateBio,
-                    onSaveProfile = profileViewModel::saveProfile,
-                    onAvatarChange = profileViewModel::updateAvatar,
-                    onBackgroundChange = profileViewModel::updateBackground,
-                    onSetEditing = profileViewModel::setEditing
-                )
-            }
-            composable(Screen.SplashScreen.route){
-                SplashScreen(
-                    onNavigation = {
-                        navController.navigate(Screen.MainScreen.route)
-                    },
-                    viewModel = splashViewModel)
-            }
-            composable(Screen.StatisticScreen.route){
-                LifecycleResumeEffect(Unit) {
-                    statisticViewModel.refresh()
-                    onPauseOrDispose {}
-                }
-                StatisticScreen(
-                    uiState = statisticViewModel.uiState.collectAsState().value,
-                    onBackClick = {
-                        navController.popBackStack(
-                            Screen.MainScreen.route,
-                            inclusive = false
+        val nav = remember { CustomNavController(Screen.SplashScreen.route) }
+
+        val configuration = LocalConfiguration.current
+        val isTablet = configuration.smallestScreenWidthDp >= 600
+        val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
+        val useDualPane = isTablet && isLandscape
+
+        BackHandler(enabled = nav.canGoBack) { nav.popBack() }
+
+        if (useDualPane && nav.previousRoute != null) {
+            //
+            Row(Modifier.fillMaxSize()) {
+                Box(Modifier.weight(1f)) {
+                    ScreenContent(
+                        route = nav.currentRoute,
+                        nav = nav,
+                        splashViewModel = splashViewModel,
+                        exerciseViewModel = exerciseViewModel,
+                        profileViewModel = profileViewModel,
+                        settingViewModel = settingViewModel,
+                        mainViewModel = mainViewModel,
+                        statisticViewModel = statisticViewModel,
+                        historyViewModel = historyViewModel
                         )
-                    }
-                )
-            }
-            composable(Screen.SettingScreen.route){
-                SettingScreen(
-                    uiState = settingViewModel.uiState.collectAsState().value,
-                    onCacheClick = {
-                        settingViewModel.clearCache()
-                    },
-                    onBackClick = {
-                        navController.popBackStack(
-                            Screen.MainScreen.route,
-                            inclusive = false
-                        )
-                    },
-                    onNotificationChange = {
-                        settingViewModel
-                            .updateNotificationEnabled(it)
-                    },
-                    onDarkModeChange = {
-                        settingViewModel
-                            .updateDarkMode(it)
-                    },
-                    onDarkModeOptionChange = { settingViewModel.updateDarkModeOption(it) },
-                    onSentenceCountConfirm = {
-                        settingViewModel
-                            .updateSentenceCount(it)
-                    },
-                    onDailyGoalConfirm = {
-                        settingViewModel
-                            .updateDailyGoal(it)
-                    }
-                )
-            }
-            composable(Screen.HistoryScreen.route) {
-                LifecycleResumeEffect(Unit) {
-                    historyViewModel.refresh()
-                    onPauseOrDispose {}
                 }
-                HistoryScreen(
-                    uiState     = historyViewModel.uiState.collectAsState().value,
-                    onBackClick = { navController.popBackStack(Screen.MainScreen.route, inclusive = false) },
-                    onCardClick = { historyViewModel.toggleExpand(it) }
-                )
+
+                VerticalDivider()
+
+                Box(Modifier.weight(1f)) {
+                    ScreenContent(
+                        route = nav.previousRoute!!,
+                        nav = nav,
+                        splashViewModel = splashViewModel,
+                        mainViewModel = mainViewModel,
+                        profileViewModel = profileViewModel,
+                        exerciseViewModel = exerciseViewModel,
+                        statisticViewModel = statisticViewModel,
+                        historyViewModel = historyViewModel,
+                        settingViewModel = settingViewModel
+                    )
+                }
+            }
+
+        }else if(isTablet && isLandscape){
+            Box(
+                modifier = Modifier.fillMaxSize()
+                    .background(Color.Transparent),
+                contentAlignment = Alignment.Center
+            ) {
+                Box(modifier = Modifier.fillMaxWidth(0.5f).fillMaxHeight().background(MaterialTheme.colorScheme.surface)) {
+                    ScreenContent(
+                        route = nav.currentRoute,
+                        nav = nav,
+                        splashViewModel = splashViewModel,
+                        mainViewModel = mainViewModel,
+                        exerciseViewModel = exerciseViewModel,
+                        profileViewModel = profileViewModel,
+                        historyViewModel = historyViewModel,
+                        settingViewModel = settingViewModel,
+                        statisticViewModel = statisticViewModel
+                        )
+                }
+            }
+        }
+        else {
+            AnimatedContent(
+                targetState = nav.currentRoute,
+                transitionSpec = {
+                    val enter = slideInHorizontally(
+                        initialOffsetX = { -it },
+                        animationSpec  = tween(320)
+                    )
+                    val exit = slideOutHorizontally(
+                        targetOffsetX = { it },
+                        animationSpec = tween(320)
+                    )
+                    enter togetherWith exit
+                },
+                label = "nav_anim"
+            ) { route ->
+                ScreenContent(
+                    route = route,
+                    nav = nav,
+                    splashViewModel = splashViewModel,
+                    mainViewModel = mainViewModel,
+                    exerciseViewModel = exerciseViewModel,
+                    profileViewModel = profileViewModel,
+                    historyViewModel = historyViewModel,
+                    settingViewModel = settingViewModel,
+                    statisticViewModel = statisticViewModel
+                    )
             }
         }
     }
