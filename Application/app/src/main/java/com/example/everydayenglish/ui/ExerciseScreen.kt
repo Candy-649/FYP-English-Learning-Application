@@ -325,7 +325,9 @@ private fun FeedbackDialog(
         },
         confirmButton = {
             when {
-                feedback.evaluationOffline || feedback.isEvaluating || feedback.isFeedbackLoading -> {
+                feedback.isEvaluating || feedback.isFeedbackLoading -> {
+                }
+                feedback.evaluationOffline -> {
                     TextButton(onClick = onNext) { Text("Next") }
                 }
                 feedback.isCorrect == true -> {

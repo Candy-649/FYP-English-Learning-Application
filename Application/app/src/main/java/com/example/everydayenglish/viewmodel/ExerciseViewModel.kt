@@ -198,7 +198,6 @@ class ExerciseViewModel(
             _uiState.update {
                 it.copy(
                     currentTries  = newTries,
-                    userAnswer    = "",
                     feedbackState = FeedbackState(
                         isCorrect              = null,
                         matchedReferenceAnswer = matchedAnswer,
@@ -238,7 +237,7 @@ class ExerciseViewModel(
                 }
                 return@launch
             }
-            viewModelScope.launch { retryPendingEvaluations() }
+
 
             recordRepository.updateEvaluation(
                 recordId  = recordId.toInt(),
@@ -258,6 +257,7 @@ class ExerciseViewModel(
                     )
                 )
             }
+            viewModelScope.launch { retryPendingEvaluations() }
         }
     }
     private suspend fun retryPendingEvaluations() {
@@ -322,11 +322,12 @@ class ExerciseViewModel(
             }
             // evaluationOffline / isEvaluating 中用户跳走：Bandit 跳过，进度照常推进
 
-            val solved      = !gaveUp && feedback.isCorrect == true && !feedback.evaluationOffline
-            val newProgress = if (solved) state.todayProgress + 1 else state.todayProgress
+            val solved = !gaveUp && feedback.isCorrect == true && !feedback.evaluationOffline
+            val progressCounts = !gaveUp && (feedback.isCorrect == true || feedback.evaluationOffline)
+
+            val newProgress = if (progressCounts) state.todayProgress + 1 else state.todayProgress
             val newAnswered = state.totalAnswered + 1
             val newCorrect  = if (solved) state.correctCount + 1 else state.correctCount
-
             userProfileRepository.updateTodayProgress(newProgress, System.currentTimeMillis(), userId)
 
             if (newAnswered >= state.dailyGoal) {
