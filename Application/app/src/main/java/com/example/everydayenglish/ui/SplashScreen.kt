@@ -1,5 +1,7 @@
 package com.example.everydayenglish.ui
 
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
@@ -10,6 +12,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -18,6 +22,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -33,6 +38,8 @@ fun SplashScreen(
     val progress by viewModel.progress.collectAsStateWithLifecycle()
     val statusText by viewModel.statusText.collectAsStateWithLifecycle()
     val isReady by viewModel.isReady.collectAsStateWithLifecycle()
+    val updateInfo by viewModel.updateInfo.collectAsStateWithLifecycle()
+    val context = LocalContext.current
 
     LaunchedEffect(Unit) {
         viewModel.initialize()
@@ -75,6 +82,21 @@ fun SplashScreen(
         LinearProgressIndicator(
             progress = { animatedProgress },
             modifier = Modifier.fillMaxWidth()
+        )
+    }
+    if (updateInfo != null) {
+        AlertDialog(
+            onDismissRequest = {},
+            title = { Text("Update Required") },
+            text = { Text("Version ${updateInfo!!.versionName} is available. Please update to continue.") },
+            confirmButton = {
+                Button(onClick = {
+                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse(updateInfo!!.downloadUrl))
+                    context.startActivity(intent)
+                }) {
+                    Text("Download Update")
+                }
+            }
         )
     }
 }

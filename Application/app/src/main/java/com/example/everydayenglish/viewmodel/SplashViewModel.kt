@@ -4,18 +4,26 @@ import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.example.everydayenglish.BuildConfig
 import com.example.everydayenglish.data.PainterDefaults
 import com.example.everydayenglish.data.Repository.AppPreferencesRepository
 import com.example.everydayenglish.data.Repository.ExerciseRepository
 import com.example.everydayenglish.data.Repository.UserProfileRepository
 import com.example.everydayenglish.data.entity.UserProfile
 import com.example.everydayenglish.grammarChecker.ModelDownloader
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import org.json.JSONObject
 import java.util.UUID
+
+data class UpdateInfo(val versionName: String, val downloadUrl: String)
 
 class SplashViewModel(
     private val exerciseRepository: ExerciseRepository,
@@ -32,6 +40,8 @@ class SplashViewModel(
 
     private val _isReady = MutableStateFlow(false)
     val isReady: StateFlow<Boolean> = _isReady.asStateFlow()
+    private val _updateInfo = MutableStateFlow<UpdateInfo?>(null)
+    val updateInfo: StateFlow<UpdateInfo?> = _updateInfo.asStateFlow()
 
     private var isInitialized = false
 
@@ -45,6 +55,9 @@ class SplashViewModel(
     }
 
     private suspend fun initializeApp() {
+        _statusText.value = "Checking for updates..."
+        checkForUpdate()
+        if (_updateInfo.value != null) return
         val steps = listOf(
             Step(weight = 3) {
                 if (!ModelDownloader.isModelReady(context)) {
@@ -97,6 +110,27 @@ class SplashViewModel(
 
         _statusText.value = "Ready!"
         _isReady.value = true
+    }
+    private suspend fun checkForUpdate() {
+        try {
+            withContext(Dispatchers.IO) {
+                val client = OkHttpClient()
+                val request = Request.Builder()
+                    .url("https://api.github.com/repos/Candy-649/FYP-English-Learning-Application/releases/latest")
+                    .header("Accept", "application/vnd.github.v3+json")
+                    .build()
+                val response = client.newCall(request).execute()
+                if (!response.isSuccessful) return@withContext
+                val body = response.body?.string() ?: return@withContext
+                val json = JSONObject(body)
+                val remoteVersion = json.getString("tag_name").removePrefix("v")
+                if (remoteVersion == BuildConfig.VERSION_NAME) return@withContext
+                val assets = json.getJSONArray("assets")
+                if (assets.length() == 0) return@withContext
+                val downloadUrl = assets.getJSONObject(0).getString("browser_download_url")
+                _updateInfo.value = UpdateInfo(remoteVersion, downloadUrl)
+            }
+        } catch (_: Exception) { } // 网络失败就跳过，不阻断
     }
 
     private fun getOrCreateUserId(): String {
