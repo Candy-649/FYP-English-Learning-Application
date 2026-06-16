@@ -17,7 +17,12 @@ class SmartGrammarChecker(
 
     override suspend fun check(text: String): GrammarResult =
         if (isNetworkAvailable()) {
-            onlineChecker.check(text)
+            try {
+                onlineChecker.check(text).takeIf { it.summary != "Grammar check unavailable." }
+                    ?: offlineChecker.check(text)
+            } catch (e: Exception) {
+                offlineChecker.check(text)
+            }
         } else {
             offlineChecker.check(text)
         }

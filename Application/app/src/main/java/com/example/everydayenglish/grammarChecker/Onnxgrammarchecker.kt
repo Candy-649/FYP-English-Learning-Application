@@ -32,7 +32,15 @@ class OnnxGrammarChecker(
         }
 
     private fun getOrCopyModelFile(): File {
-        return File(context.filesDir, modelFile)
+        val dest = File(context.filesDir, modelFile)
+        if (!dest.exists()) {
+            context.assets.open(modelFile).use { input ->
+                dest.outputStream().use { output ->
+                    input.copyTo(output)
+                }
+            }
+        }
+        return dest
     }
 
     private val tokenizer: BertTokenizer by lazy { BertTokenizer(context) }

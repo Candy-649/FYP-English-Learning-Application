@@ -19,6 +19,7 @@ import com.example.everydayenglish.data.entity.UserProfile
 import com.example.everydayenglish.grammarChecker.GrammarChecker
 import com.example.everydayenglish.onlineEvaluation.FeedbackGenerator
 import com.example.everydayenglish.onlineEvaluation.SemanticChecker
+import com.example.everydayenglish.onlineEvaluation.SemanticResult
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
@@ -209,19 +210,11 @@ class ExerciseViewModel(
                 )
             }
             //HuggingFace Semantic
-            val semanticResult = try {
+            val semanticResult: SemanticResult? = try {
                 semanticChecker.evaluate(userAnswer, referenceTexts)
-            } catch (e: Exception){
+            } catch (e: Exception) {
                 android.util.Log.e("HF_DEBUG", "Semantic check failed: ${e.message}", e)
-                _uiState.update {
-                    it.copy(
-                        feedbackState = it.feedbackState?.copy(
-                            isEvaluating = false,
-                            evaluationOffline = true
-                        )
-                    )
-                }
-                return@launch
+                null   // 不 return，继续跑 DeepSeek
             }
             //Deepseek Feedback
             val evalResult = try {
@@ -229,26 +222,35 @@ class ExerciseViewModel(
                     userAnswer       = userAnswer,
                     referenceAnswers = referenceTexts,
                     grammarSummary   = grammarResult.summary,
-                    semanticScore    = semanticResult.score
+                    semanticScore    = semanticResult?.score
                 )
             } catch (e: Exception) { null }
+            if (evalResult == null && semanticResult == null) {
+                _uiState.update {
+                    it.copy(feedbackState = it.feedbackState?.copy(
+                        isEvaluating = false,
+                        evaluationOffline = true
+                    ))
+                }
+                return@launch
+            }
+            viewModelScope.launch { retryPendingEvaluations() }
 
             recordRepository.updateEvaluation(
                 recordId  = recordId.toInt(),
-                score     = semanticResult.score,
+                score     = semanticResult?.score ?: 0.0,
                 feedback  = evalResult?.feedback ?: "",
-                isCorrect = evalResult?.isCorrect ?: semanticResult.isCorrect  // fallback 到 HF
+                isCorrect = evalResult?.isCorrect ?: semanticResult?.isCorrect ?: false
             )
-            viewModelScope.launch { retryPendingEvaluations() }
 
             _uiState.update {
                 it.copy(
                     feedbackState = it.feedbackState?.copy(
-                        isCorrect     = evalResult?.isCorrect ?: semanticResult.isCorrect,
-                        semanticScore = semanticResult.score,
-                        feedback      = evalResult?.feedback,
+                        isCorrect         = evalResult?.isCorrect ?: semanticResult?.isCorrect ?: false,
+                        semanticScore     = semanticResult?.score,
+                        feedback          = evalResult?.feedback,
                         isFeedbackLoading = false,
-                        isEvaluating  = false
+                        isEvaluating      = false
                     )
                 )
             }
@@ -274,12 +276,14 @@ class ExerciseViewModel(
                     )
                 } catch (e: Exception) { null }
 
-                recordRepository.updateEvaluation(
-                    recordId  = record.recordId,
-                    score     = semanticResult.score,
-                    feedback  = evalResult?.feedback ?: "",
-                    isCorrect = evalResult?.isCorrect ?: semanticResult.isCorrect
-                )
+                if (evalResult != null) {
+                    recordRepository.updateEvaluation(
+                        recordId  = record.recordId,
+                        score     = semanticResult.score,
+                        feedback  = evalResult.feedback,
+                        isCorrect = evalResult.isCorrect
+                    )
+                }
             } catch (e: Exception) {
                 continue
             }

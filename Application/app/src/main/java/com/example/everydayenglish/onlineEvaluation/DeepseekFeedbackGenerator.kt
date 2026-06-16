@@ -29,7 +29,7 @@ class DeepSeekFeedbackGenerator(
     - The student's answer
     - One or more reference answers
     - A grammar check result
-    - A semantic similarity score (0.0 = completely different meaning, 1.0 = identical meaning)
+    - A semantic similarity score (0.0–1.0), or "unavailable" if the scoring service is offline
 
     First, decide: if the student's answer is mostly correct in meaning with only minor grammar issues, judge it as correct. If the meaning is far from the reference or there are serious grammar errors, judge it as incorrect.
 
@@ -45,7 +45,7 @@ class DeepSeekFeedbackGenerator(
         userAnswer: String,
         referenceAnswers: List<String>,
         grammarSummary: String?,
-        semanticScore: Double
+        semanticScore: Double?
     ): EvaluationResult = withContext(Dispatchers.IO) {
         callDeepSeekApi(userAnswer, referenceAnswers, grammarSummary, semanticScore)
     }
@@ -54,13 +54,14 @@ class DeepSeekFeedbackGenerator(
         userAnswer       : String,
         referenceAnswers : List<String>,
         grammarSummary   : String?,
-        semanticScore    : Double
+        semanticScore    : Double?
     ): EvaluationResult {
         val refBlock = referenceAnswers
             .mapIndexed { i, ref -> "${i + 1}. $ref" }
             .joinToString("\n")
 
         val meaningLevel = when {
+            semanticScore == null -> "Semantic similarity score is unavailable; evaluate based on grammar and reference answers only."
             semanticScore >= 0.90 -> "The meaning is essentially correct."
             semanticScore >= 0.75 -> "The meaning is mostly correct but slightly off."
             semanticScore >= 0.50 -> "The meaning is partially correct."

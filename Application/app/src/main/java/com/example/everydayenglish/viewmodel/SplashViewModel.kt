@@ -10,7 +10,6 @@ import com.example.everydayenglish.data.Repository.AppPreferencesRepository
 import com.example.everydayenglish.data.Repository.ExerciseRepository
 import com.example.everydayenglish.data.Repository.UserProfileRepository
 import com.example.everydayenglish.data.entity.UserProfile
-import com.example.everydayenglish.grammarChecker.ModelDownloader
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -59,16 +58,6 @@ class SplashViewModel(
         checkForUpdate()
         if (_updateInfo.value != null) return
         val steps = listOf(
-            Step(weight = 3) {
-                if (!ModelDownloader.isModelReady(context)) {
-                    _statusText.value = "Downloading grammar model..."
-                    val success = ModelDownloader.ensureModel(context)
-                    if (!success) {
-                        _statusText.value = "Grammar model unavailable offline."
-                        delay(1500L)
-                    }
-                }
-            },
             Step(weight = 2) {
                 _statusText.value = "Checking exercises..."
                 val exercises = exerciseRepository.getExercisesWithReferenceAnswers()

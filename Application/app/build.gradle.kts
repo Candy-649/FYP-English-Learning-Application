@@ -5,7 +5,6 @@ plugins {
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.ksp)
-    id("com.google.gms.google-services")
 }
 val localProps = Properties().also {
     val f = rootProject.file("local.properties")
@@ -21,7 +20,7 @@ android {
         minSdk = 26
         targetSdk = 36
         versionCode = 1
-        versionName = "1.3"
+        versionName = "1.4"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
@@ -92,8 +91,6 @@ dependencies {
     implementation(libs.coil.compose)
     implementation(libs.gson)
     implementation(libs.okhttp)
-    implementation(platform("com.google.firebase:firebase-bom:34.14.1"))
-    implementation("com.google.firebase:firebase-analytics")
     implementation(libs.markwon.core)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

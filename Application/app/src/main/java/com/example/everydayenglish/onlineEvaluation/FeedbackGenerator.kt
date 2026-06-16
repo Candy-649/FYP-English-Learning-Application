@@ -7,6 +7,6 @@ interface FeedbackGenerator {
         userAnswer: String,
         referenceAnswers: List<String>,
         grammarSummary: String?,
-        semanticScore: Double
+        semanticScore: Double?
     ): EvaluationResult
 }
