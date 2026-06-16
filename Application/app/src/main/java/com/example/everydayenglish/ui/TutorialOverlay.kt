@@ -22,9 +22,13 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 
 data class TutorialStep(
@@ -42,25 +46,27 @@ fun TutorialOverlay(
     val step = steps.getOrNull(currentStep) ?: run { onDismiss(); return }
     val bounds = step.bounds
 
-    val density = LocalDensity.current
-    val configuration = LocalConfiguration.current
-    val screenWidthPx  = with(density) { configuration.screenWidthDp.dp.toPx() }
-    val screenHeightPx = with(density) { configuration.screenHeightDp.dp.toPx() }
+    var overlayOffset by remember { mutableStateOf(Offset.Zero) }
 
     val animSpec = tween<Float>(durationMillis = 450, easing = FastOutSlowInEasing)
 
     val pad = 24f
-    val targetLeft   = (bounds?.left   ?: 0f)          - pad
-    val targetTop    = (bounds?.top    ?: 0f)           - pad
-    val targetRight  = (bounds?.right  ?: screenWidthPx)  + pad
-    val targetBottom = (bounds?.bottom ?: screenHeightPx) + pad
+    val targetLeft   = (bounds?.left   ?: overlayOffset.x)            - overlayOffset.x - pad
+    val targetTop    = (bounds?.top    ?: overlayOffset.y)             - overlayOffset.y - pad
+    val targetRight  = (bounds?.right  ?: (overlayOffset.x + 9999f))  - overlayOffset.x + pad
+    val targetBottom = (bounds?.bottom ?: (overlayOffset.y + 9999f))  - overlayOffset.y + pad
 
     val left   by animateFloatAsState(targetLeft,   animSpec, label = "left")
     val top    by animateFloatAsState(targetTop,    animSpec, label = "top")
     val right  by animateFloatAsState(targetRight,  animSpec, label = "right")
     val bottom by animateFloatAsState(targetBottom, animSpec, label = "bottom")
 
-    Box(Modifier.fillMaxSize()) {
+    Box(Modifier
+        .fillMaxSize().
+        onGloballyPositioned { coords ->
+        overlayOffset = coords.boundsInRoot().topLeft  // ← 量自己
+    }
+    ) {
 
         // 1. 画遮罩 + 挖洞
         Canvas(

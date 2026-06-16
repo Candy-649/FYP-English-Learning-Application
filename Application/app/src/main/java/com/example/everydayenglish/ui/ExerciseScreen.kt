@@ -625,7 +625,7 @@ private fun ExerciseContent(
                     modifier    = Modifier
                         .fillMaxWidth()
                         .height(120.dp),
-                    placeholder = { Text("Type your answer...") },
+                    placeholder = { Text("Type your translation here...") },
                     colors = OutlinedTextFieldDefaults.colors(
                         unfocusedContainerColor = MaterialTheme.colorScheme.surface
                     )
