@@ -33,6 +33,7 @@ class ProfileViewModel(
         MutableStateFlow(ProfileUiState())
 
     val uiState = _uiState.asStateFlow()
+    private var cachedProfile: UserProfile? = null
 
     private var isEditing = false
 
@@ -49,6 +50,7 @@ class ProfileViewModel(
             try {
                 val userId = appPreferencesRepository.getUserId()
                 val profile = userProfileRepository.getUserProfile(userId) ?: return@launch
+                cachedProfile = profile
                 val completedDays = dailyCompletionRepository.getCompletedDays(userId)
                 val streak = calculateStreak(completedDays)
                 _uiState.update { current ->
@@ -117,42 +119,17 @@ class ProfileViewModel(
             try {
 
                 val state = _uiState.value
+                val base = cachedProfile ?: return@launch
 
-                val userId =
-                    appPreferencesRepository
-                        .getUserId()
-
-                userProfileRepository
-                    .updateUserProfile(
-
-                        UserProfile(
-
-                            userId = userId,
-
-                            userName =
-                                state.userName,
-
-                            bio =
-                                state.bio,
-                            avatarUri = state.userAvatar,
-                            profileBackgroundUri = state.profileBackground,
-
-                            totalStudyDays =
-                                state.totalStudyDays,
-
-                            totalSentencesCompleted =
-                                state.totalSentencesCompleted,
-
-                            currentStreak =
-                                state.currentStreak,
-
-                            dailyGoal =
-                                state.dailyGoal,
-
-                            todayProgress =
-                                state.todayProgress
-                        )
+                userProfileRepository.updateUserProfile(
+                    base.copy(
+                        userName             = state.userName,
+                        bio                  = state.bio,
+                        avatarUri            = state.userAvatar,
+                        profileBackgroundUri = state.profileBackground,
+                        dailyGoal            = state.dailyGoal
                     )
+                )
 
             } catch (_: Exception) {
 

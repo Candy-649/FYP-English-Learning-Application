@@ -224,8 +224,12 @@ class ExerciseViewModel(
                     grammarSummary   = grammarResult.summary,
                     semanticScore    = semanticResult?.score
                 )
-            } catch (e: Exception) { null }
+            } catch (e: Exception) {
+                android.util.Log.e("DS_DEBUG", "DeepSeek failed: ${e.message}", e)
+                null
+            }
             if (evalResult == null && semanticResult == null) {
+                android.util.Log.w("EVAL_DEBUG", "Both failed → pending")
                 _uiState.update {
                     it.copy(feedbackState = it.feedbackState?.copy(
                         isEvaluating = false,
