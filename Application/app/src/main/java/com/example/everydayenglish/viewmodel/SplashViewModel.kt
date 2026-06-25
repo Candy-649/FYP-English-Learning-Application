@@ -21,7 +21,6 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import org.json.JSONObject
 import java.util.UUID
-import java.util.concurrent.TimeUnit
 
 data class UpdateInfo(val versionName: String, val downloadUrl: String)
 
@@ -44,17 +43,6 @@ class SplashViewModel(
     val updateInfo: StateFlow<UpdateInfo?> = _updateInfo.asStateFlow()
 
     private var isInitialized = false
-
-    private val probeClient = OkHttpClient.Builder()
-        .connectTimeout(PROBE_TIMEOUT_MS, TimeUnit.MILLISECONDS)
-        .readTimeout(PROBE_TIMEOUT_MS, TimeUnit.MILLISECONDS)
-        .build()
-
-    companion object {
-        private const val GITHUB_OWNER_REPO = "Candy-649/FYP-English-Learning-Application"
-        private const val GITEE_OWNER_REPO = "Candy-649/FYP-English-Learning-Application" // TODO: 改成你实际的path
-        private const val PROBE_TIMEOUT_MS = 2500L
-    }
 
     fun initialize() {
         if (isInitialized) return
@@ -112,41 +100,26 @@ class SplashViewModel(
         _statusText.value = "Ready!"
         _isReady.value = true
     }
-    private suspend fun checkForUpdate() = withContext(Dispatchers.IO) {
-        val release = fetchLatestRelease(
-            url = "https://api.github.com/repos/$GITHUB_OWNER_REPO/releases/latest",
-            headers = mapOf("Accept" to "application/vnd.github.v3+json")
-        ) ?: fetchLatestRelease(
-            url = "https://gitee.com/api/v5/repos/$GITEE_OWNER_REPO/releases/latest",
-            headers = emptyMap()
-        )
-
-        release?.let { (remoteVersion, downloadUrl) ->
-            if (remoteVersion != BuildConfig.VERSION_NAME) {
+    private suspend fun checkForUpdate() {
+        try {
+            withContext(Dispatchers.IO) {
+                val client = OkHttpClient()
+                val request = Request.Builder()
+                    .url("https://api.github.com/repos/Candy-649/FYP-English-Learning-Application/releases/latest")
+                    .header("Accept", "application/vnd.github.v3+json")
+                    .build()
+                val response = client.newCall(request).execute()
+                if (!response.isSuccessful) return@withContext
+                val body = response.body?.string() ?: return@withContext
+                val json = JSONObject(body)
+                val remoteVersion = json.getString("tag_name").removePrefix("v")
+                if (remoteVersion == BuildConfig.VERSION_NAME) return@withContext
+                val assets = json.getJSONArray("assets")
+                if (assets.length() == 0) return@withContext
+                val downloadUrl = assets.getJSONObject(0).getString("browser_download_url")
                 _updateInfo.value = UpdateInfo(remoteVersion, downloadUrl)
             }
-        }
-    }
-
-    private fun fetchLatestRelease(
-        url: String,
-        headers: Map<String, String>
-    ): Pair<String, String>? = try {
-        val requestBuilder = Request.Builder().url(url)
-        headers.forEach { (key, value) -> requestBuilder.header(key, value) }
-
-        probeClient.newCall(requestBuilder.build()).execute().use { response ->
-            if (!response.isSuccessful) return null
-            val body = response.body?.string() ?: return null
-            val json = JSONObject(body)
-            val remoteVersion = json.getString("tag_name").removePrefix("v")
-            val assets = json.getJSONArray("assets")
-            if (assets.length() == 0) return null
-            val downloadUrl = assets.getJSONObject(0).getString("browser_download_url")
-            remoteVersion to downloadUrl
-        }
-    } catch (_: Exception) {
-        null
+        } catch (_: Exception) { } // 网络失败就跳过，不阻断
     }
 
     private fun getOrCreateUserId(): String {
