@@ -41,6 +41,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.example.everydayenglish.data.entity.ExerciseRecord
 import com.example.everydayenglish.viewmodel.HistoryItem
@@ -380,20 +381,26 @@ private fun RecordRow(
         )
 
         // 语义得分（有的话）
-        record.semanticScore?.let { score ->
+        /*record.semanticScore?.let { score ->
             Text(
                 text  = "Similarity: ${"%.0f".format(score * 100)}%",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
-        }
+        }*/
 
         // 语法备注
-        record.grammar?.takeIf { it.isNotBlank() }?.let { grammar ->
+        /*record.grammar?.takeIf { it.isNotBlank() }?.let { grammar ->
             Text(
                 text  = "Grammar: $grammar",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }*/
+        record.feedback?.takeIf { it.isNotBlank() }?.let { feedback ->
+            MarkdownText(
+                markdown = feedback,
+                modifier = Modifier.fillMaxWidth()
             )
         }
         // ── debug 区域 ────────────────────────────────────────────
@@ -433,4 +440,24 @@ private fun formatTimestamp(timestamp: Long): String {
         else                         -> SimpleDateFormat("MMM d", Locale.getDefault())
             .format(Date(timestamp))
     }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun RecordRowPreview() {
+    RecordRow(
+        attemptNumber = 1,
+        record = ExerciseRecord(
+            recordId = 1,
+            promptId = 1,
+            userId = "preview",
+            referId = 1,
+            userAnswer = "She have been study English for three years.",
+            isCorrect = false,
+            grammar = "Subject-verb agreement error: 'have' should be 'has'.",
+            semanticScore = 0.82,
+            feedback = "**Issue:** Subject-verb agreement.\n\n- 'She' is third-person singular, so the verb should be 'has', not 'have'.\n- Correct form: *She has been studying English for three years.*",
+            evaluationPending = false
+        )
+    )
 }

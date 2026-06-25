@@ -279,6 +279,11 @@ private fun FeedbackDialog(
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.outline
                         )
+                        Text(
+                            text = "grammar: ${feedback.grammar}",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.outline
+                        )
                     }
                     feedback.isEvaluating -> {
                         Row(
