@@ -19,6 +19,14 @@ import com.example.everydayenglish.data.entity.ReferenceAnswer
 import com.example.everydayenglish.data.entity.UserProfile
 import com.example.everydayenglish.data.typeConverter.UriTypeConverter
 
+val MIGRATION_2_3 = object : Migration(2, 3) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            "ALTER TABLE user_profiles ADD COLUMN todayCorrectCount INTEGER NOT NULL DEFAULT 0"
+        )
+    }
+}
+
 @Database(
     entities = [
         Exercise::class,
@@ -28,7 +36,7 @@ import com.example.everydayenglish.data.typeConverter.UriTypeConverter
         QuestionAttempt::class,
         DailyCompletion::class
     ],
-    version = 2,
+    version = 3,
     exportSchema = false
 )
 @TypeConverters(UriTypeConverter::class)

@@ -85,9 +85,14 @@ fun ScreenContent(
         Screen.HistoryScreen.route -> {
             LaunchedEffect(route) { historyViewModel.refresh() }
             HistoryScreen(
-                uiState     = historyViewModel.uiState.collectAsState().value,
-                onBackClick = { nav.popBackTo(Screen.MainScreen.route) },
-                onCardClick = { historyViewModel.toggleExpand(it) }
+                uiState            = historyViewModel.uiState.collectAsState().value,
+                onBackClick        = { nav.popBackTo(Screen.MainScreen.route) },
+                onCardClick        = { historyViewModel.toggleExpand(it) },
+                onRedoClick        = { historyViewModel.openRedo(it) },
+                onRedoAnswerChange = { historyViewModel.updateRedoAnswer(it) },
+                onSubmitRedo       = { historyViewModel.submitRedo() },
+                onRetryRedo        = { historyViewModel.retryRedo() },
+                onCloseRedo        = { historyViewModel.closeRedo() }
             )
         }
 

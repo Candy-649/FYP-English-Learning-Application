@@ -18,6 +18,7 @@ import com.example.everydayenglish.data.Repository.ExerciseRepository
 import com.example.everydayenglish.data.Repository.RecordRepository
 import com.example.everydayenglish.data.Repository.UserProfileRepository
 import com.example.everydayenglish.data.dataStore.dataStore
+import com.example.everydayenglish.domain.CorrectAnswerRewardApplier
 import com.example.everydayenglish.grammarChecker.GrammarChecker
 import com.example.everydayenglish.onlineEvaluation.DeepSeekFeedbackGenerator
 import com.example.everydayenglish.onlineEvaluation.FeedbackGenerator
@@ -36,6 +37,7 @@ interface AppContainer {
     val semanticChecker         : SemanticChecker
     val feedbackGenerator: FeedbackGenerator
     val dailyCompletionRepository: DailyCompletionRepository
+    val correctAnswerRewardApplier: CorrectAnswerRewardApplier
 }
 
 class AppDataContainer(context: Context) : AppContainer {
@@ -45,6 +47,8 @@ class AppDataContainer(context: Context) : AppContainer {
         AppDatabase::class.java,
         "everyday_english_db"
     )
+        .addMigrations(MIGRATION_2_3)
+        .fallbackToDestructiveMigration(true) // 兜底：以后哪个版本忘了写 migration 也不至于直接崩
         .build()
 
     override val exerciseRepository: ExerciseRepository =
@@ -80,4 +84,7 @@ class AppDataContainer(context: Context) : AppContainer {
         DeepSeekFeedbackGenerator(apiKey = BuildConfig.DEEPSEEK_API_KEY)
     override val dailyCompletionRepository: DailyCompletionRepository =
         OfflineDailyCompletionRepository(database.dailyCompletionDao())
+
+    override val correctAnswerRewardApplier: CorrectAnswerRewardApplier =
+        CorrectAnswerRewardApplier(attemptRepository, banditRepository, userProfileRepository)
 }

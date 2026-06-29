@@ -49,7 +49,7 @@ class ProfileViewModel(
             Log.d("ProfileVM", "loadProfile called")
             try {
                 val userId = appPreferencesRepository.getUserId()
-                val profile = userProfileRepository.getUserProfile(userId) ?: return@launch
+                val profile = userProfileRepository.getUserProfileForToday(userId) ?: return@launch
                 cachedProfile = profile
                 val completedDays = dailyCompletionRepository.getCompletedDays(userId)
                 val streak = calculateStreak(completedDays)

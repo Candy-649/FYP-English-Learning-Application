@@ -16,6 +16,7 @@ import com.example.everydayenglish.data.entity.ExerciseWithReferenceAnswers
 import com.example.everydayenglish.data.entity.QuestionAttempt
 import com.example.everydayenglish.data.entity.ReferenceAnswer
 import com.example.everydayenglish.data.entity.UserProfile
+import com.example.everydayenglish.domain.CorrectAnswerRewardApplier
 import com.example.everydayenglish.grammarChecker.GrammarChecker
 import com.example.everydayenglish.onlineEvaluation.FeedbackGenerator
 import com.example.everydayenglish.onlineEvaluation.SemanticChecker
@@ -26,8 +27,6 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlin.math.ln
 import kotlin.math.sqrt
-
-// Default user ID for a single-user app
 
 data class ArmDebugInfo(
     val category: TenseCategory,
@@ -56,7 +55,8 @@ class ExerciseViewModel(
     private val grammarChecker: GrammarChecker,
     private val semanticChecker: SemanticChecker,
     private val feedbackGenerator: FeedbackGenerator,
-    private val dailyCompletionRepository: DailyCompletionRepository
+    private val dailyCompletionRepository: DailyCompletionRepository,
+    private val correctAnswerRewardApplier: CorrectAnswerRewardApplier
 ) : ViewModel() {
 
     private val userId: String
@@ -77,7 +77,7 @@ class ExerciseViewModel(
             _uiState.update { it.copy(isLoading = true, errorMessage = null) }
 
             try {
-                val profile = userProfileRepository.getUserProfile(userId = userId)
+                val profile = userProfileRepository.getUserProfileForToday(userId = userId)
                 fetchExerciseBatch(
                     dailyGoal     = profile?.dailyGoal ?: 10,
                     todayProgress = profile?.todayProgress ?: 0
@@ -303,32 +303,45 @@ class ExerciseViewModel(
             val tense    = feedback.matchedReferenceAnswer?.tense ?: "Unknown"
             val now      = System.currentTimeMillis()
 
-            // 只有已拿到评估结果才更新 Bandit / sentencesCompleted
+            // 只有已拿到评估结果才更新 Bandit / sentencesCompleted / todayProgress / todayCorrectCount
+            val solved = !gaveUp && feedback.isCorrect == true && !feedback.evaluationOffline
             if (!feedback.evaluationOffline && feedback.isCorrect != null) {
-                val solved   = !gaveUp && feedback.isCorrect
-                val accuracy = if (solved) 1.0 / state.currentTries else 0.0
-                attemptRepository.insert(
-                    QuestionAttempt(
+                if (solved) {
+                    // 答对了该做的事，统一走共用函数（History 重做放弃的题也走同一个函数）
+                    correctAnswerRewardApplier.apply(
                         promptId   = exercise.exercise.promptId,
                         userId     = userId,
                         tense      = tense,
-                        totalTries = state.currentTries,
-                        solved     = solved,
-                        accuracy   = accuracy
+                        totalTries = state.currentTries
                     )
-                )
-                banditRepository.updateFromAttempt(tense, accuracy, now)
-                if (solved) userProfileRepository.incrementSentencesCompleted(userId)
+                } else {
+                    // 答错 / 主动放弃：只记一次失败的 attempt，喂给 Bandit（不计入 sentencesCompleted）
+                    attemptRepository.insert(
+                        QuestionAttempt(
+                            promptId   = exercise.exercise.promptId,
+                            userId     = userId,
+                            tense      = tense,
+                            totalTries = state.currentTries,
+                            solved     = false,
+                            accuracy   = 0.0
+                        )
+                    )
+                    banditRepository.updateFromAttempt(tense, 0.0, now)
+                }
             }
             // evaluationOffline / isEvaluating 中用户跳走：Bandit 跳过，进度照常推进
 
-            val solved = !gaveUp && feedback.isCorrect == true && !feedback.evaluationOffline
             val progressCounts = !gaveUp && (feedback.isCorrect == true || feedback.evaluationOffline)
 
             val newProgress = if (progressCounts) state.todayProgress + 1 else state.todayProgress
             val newAnswered = state.totalAnswered + 1
             val newCorrect  = if (solved) state.correctCount + 1 else state.correctCount
-            userProfileRepository.updateTodayProgress(newProgress, System.currentTimeMillis(), userId)
+            // solved 的情况，todayProgress 已经在 correctAnswerRewardApplier 里持久化过了；
+            // 这里只处理「答错/放弃但进度仍要推进」或「offline 评估」这两种 applier 没覆盖的情况，
+            // 避免对 todayProgress 写两次。
+            if (progressCounts && !solved) {
+                userProfileRepository.updateTodayProgress(newProgress, System.currentTimeMillis(), userId)
+            }
 
             if (newAnswered >= state.dailyGoal) {
                 userProfileRepository.incrementStudyDays(userId)
@@ -396,7 +409,7 @@ class ExerciseViewModel(
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, errorMessage = null) }
             try {
-                val profile = userProfileRepository.getUserProfile(userId)
+                val profile = userProfileRepository.getUserProfileForToday(userId)
                 fetchExerciseBatch(
                     dailyGoal     = profile?.dailyGoal ?: 10,
                     todayProgress = profile?.todayProgress ?: 0

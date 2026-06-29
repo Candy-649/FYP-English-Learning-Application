@@ -3,6 +3,7 @@ package com.example.everydayenglish.data.OfflineRepository
 import com.example.everydayenglish.data.Repository.UserProfileRepository
 import com.example.everydayenglish.data.dao.UserProfileDao
 import com.example.everydayenglish.data.entity.UserProfile
+import com.example.everydayenglish.util.isNewDay
 import kotlinx.coroutines.flow.Flow
 
 class OfflineUserProfileRepository(
@@ -18,8 +19,22 @@ class OfflineUserProfileRepository(
     override suspend fun getUserProfile(userId: String): UserProfile? =
         userProfileDao.getUserProfile(userId)
 
+    override suspend fun getUserProfileForToday(userId: String): UserProfile? {
+        val profile = userProfileDao.getUserProfile(userId) ?: return null
+        if (!isNewDay(profile.lastStudiedDate)) return profile
+        if (profile.todayProgress == 0 && profile.todayCorrectCount == 0) return profile
+
+        val now = System.currentTimeMillis()
+        userProfileDao.updateTodayProgress(0, now, userId)
+        userProfileDao.updateTodayCorrectCount(0, userId)
+        return profile.copy(todayProgress = 0, todayCorrectCount = 0, lastStudiedDate = now)
+    }
+
     override suspend fun updateTodayProgress(progress: Int, date: Long, userId: String) =
         userProfileDao.updateTodayProgress(progress, date, userId)
+
+    override suspend fun updateTodayCorrectCount(count: Int, userId: String) =
+        userProfileDao.updateTodayCorrectCount(count, userId)
 
     override suspend fun updateStreak(streak: Int, date: Long, userId: String) =
         userProfileDao.updateStreak(streak, date, userId)

@@ -42,7 +42,7 @@ class StatisticViewModel(
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, errorMessage = null) }
             try {
-                val profileDeferred = async { userProfileRepository.getUserProfile(userId) }
+                val profileDeferred = async { userProfileRepository.getUserProfileForToday(userId) }
                 val attemptsDeferred = async { attemptRepository.getAllByUser(userId) }
 
 

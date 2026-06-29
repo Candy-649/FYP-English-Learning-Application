@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -23,6 +24,8 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Cancel
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.HourglassEmpty
+import androidx.compose.material.icons.filled.Replay
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -31,9 +34,11 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SuggestionChip
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -46,6 +51,7 @@ import androidx.compose.ui.unit.dp
 import com.example.everydayenglish.data.entity.ExerciseRecord
 import com.example.everydayenglish.viewmodel.HistoryItem
 import com.example.everydayenglish.viewmodel.HistoryUiState
+import com.example.everydayenglish.viewmodel.RedoFeedbackState
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -53,9 +59,14 @@ import java.util.Locale
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HistoryScreen(
-    uiState    : HistoryUiState,
-    onBackClick: () -> Unit,
-    onCardClick: (Int) -> Unit      // promptId
+    uiState           : HistoryUiState,
+    onBackClick       : () -> Unit,
+    onCardClick       : (Int) -> Unit,      // promptId
+    onRedoClick       : (Int) -> Unit = {}, // promptId，打开重做面板
+    onRedoAnswerChange: (String) -> Unit = {},
+    onSubmitRedo      : () -> Unit = {},
+    onRetryRedo       : () -> Unit = {},
+    onCloseRedo       : () -> Unit = {}
 ) {
     Scaffold(
         topBar = {
@@ -125,9 +136,17 @@ fun HistoryScreen(
                         key   = { _, item -> item.promptId }
                     ) { _, item ->
                         HistoryCard(
-                            item       = item,
-                            isExpanded = uiState.expandedPromptId == item.promptId,
-                            onClick    = { onCardClick(item.promptId) }
+                            item              = item,
+                            isExpanded        = uiState.expandedPromptId == item.promptId,
+                            isRedoOpen        = uiState.redoPromptId == item.promptId,
+                            redoAnswer        = uiState.redoAnswer,
+                            redoFeedback      = uiState.redoFeedback,
+                            onClick           = { onCardClick(item.promptId) },
+                            onRedoClick       = { onRedoClick(item.promptId) },
+                            onRedoAnswerChange = onRedoAnswerChange,
+                            onSubmitRedo      = onSubmitRedo,
+                            onRetryRedo       = onRetryRedo,
+                            onCloseRedo       = onCloseRedo
                         )
                     }
                 }
@@ -142,9 +161,17 @@ fun HistoryScreen(
 
 @Composable
 private fun HistoryCard(
-    item      : HistoryItem,
-    isExpanded: Boolean,
-    onClick   : () -> Unit
+    item              : HistoryItem,
+    isExpanded        : Boolean,
+    isRedoOpen        : Boolean,
+    redoAnswer        : String,
+    redoFeedback      : RedoFeedbackState?,
+    onClick           : () -> Unit,
+    onRedoClick       : () -> Unit,
+    onRedoAnswerChange: (String) -> Unit,
+    onSubmitRedo      : () -> Unit,
+    onRetryRedo       : () -> Unit,
+    onCloseRedo       : () -> Unit
 ) {
     Card(
         modifier  = Modifier
@@ -209,6 +236,23 @@ private fun HistoryCard(
                 )
             }
 
+            // ── 一次都没做对：可以重做 ───────────────────────────
+            if (item.canRedo && !isRedoOpen) {
+                Spacer(modifier = Modifier.height(10.dp))
+                TextButton(
+                    onClick  = onRedoClick,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Icon(
+                        imageVector        = Icons.Default.Replay,
+                        contentDescription = null,
+                        modifier           = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("Redo this question")
+                }
+            }
+
             // ── 展开：历次记录 ──────────────────────────────────
             AnimatedVisibility(
                 visible = isExpanded,
@@ -233,6 +277,150 @@ private fun HistoryCard(
                             )
                         }
                     }
+
+                    if (isRedoOpen) {
+                        HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp))
+                        RedoPanel(
+                            answer       = redoAnswer,
+                            feedback     = redoFeedback,
+                            onAnswerChange = onRedoAnswerChange,
+                            onSubmit     = onSubmitRedo,
+                            onRetry      = onRetryRedo,
+                            onClose      = onCloseRedo
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+
+@Composable
+private fun RedoPanel(
+    answer        : String,
+    feedback      : RedoFeedbackState?,
+    onAnswerChange: (String) -> Unit,
+    onSubmit      : () -> Unit,
+    onRetry       : () -> Unit,
+    onClose       : () -> Unit
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(
+            text       = "Redo",
+            style      = MaterialTheme.typography.labelMedium,
+            color      = MaterialTheme.colorScheme.primary,
+            fontWeight = FontWeight.Bold
+        )
+
+        when {
+            feedback == null -> {
+                OutlinedTextField(
+                    value         = answer,
+                    onValueChange = onAnswerChange,
+                    modifier      = Modifier.fillMaxWidth(),
+                    placeholder   = { Text("Enter your answer") }
+                )
+                Row(
+                    modifier              = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End
+                ) {
+                    TextButton(onClick = onClose) { Text("Cancel") }
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Button(
+                        onClick = onSubmit,
+                        enabled = answer.isNotBlank()
+                    ) { Text("Submit") }
+                }
+            }
+
+            feedback.isEvaluating -> {
+                Row(
+                    verticalAlignment     = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    CircularProgressIndicator(
+                        modifier    = Modifier.size(14.dp),
+                        strokeWidth = 2.dp
+                    )
+                    Text(
+                        text  = "Evaluating...",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.outline
+                    )
+                }
+            }
+
+            feedback.evaluationOffline -> {
+                Text(
+                    text  = "Evaluation failed (possibly a network issue). This attempt won't count toward your progress — please try again later.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.outline
+                )
+                Row(
+                    modifier              = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End
+                ) {
+                    TextButton(onClick = onClose) { Text("Got it") }
+                }
+            }
+
+            feedback.isCorrect == true -> {
+                Row(
+                    verticalAlignment     = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Icon(
+                        imageVector        = Icons.Default.CheckCircle,
+                        contentDescription = null,
+                        modifier           = Modifier.size(16.dp),
+                        tint               = MaterialTheme.colorScheme.primary
+                    )
+                    Text(
+                        text       = "Correct! Counted toward today's progress",
+                        style      = MaterialTheme.typography.labelMedium,
+                        color      = MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+                feedback.feedback?.takeIf { it.isNotBlank() }?.let {
+                    MarkdownText(markdown = it, modifier = Modifier.fillMaxWidth())
+                }
+                Row(
+                    modifier              = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End
+                ) {
+                    Button(onClick = onClose) { Text("Done") }
+                }
+            }
+
+            else -> {
+                Row(
+                    verticalAlignment     = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Icon(
+                        imageVector        = Icons.Default.Cancel,
+                        contentDescription = null,
+                        modifier           = Modifier.size(16.dp),
+                        tint               = MaterialTheme.colorScheme.error
+                    )
+                    Text(
+                        text  = "Still incorrect",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
+                feedback.feedback?.takeIf { it.isNotBlank() }?.let {
+                    MarkdownText(markdown = it, modifier = Modifier.fillMaxWidth())
+                }
+                Row(
+                    modifier              = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End
+                ) {
+                    TextButton(onClick = onClose) { Text("Give Up") }
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Button(onClick = onRetry) { Text("Retry") }
                 }
             }
         }
