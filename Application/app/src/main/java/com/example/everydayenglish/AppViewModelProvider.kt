@@ -38,7 +38,8 @@ object AppViewModelProvider {
                 grammarChecker           = everydayEnglishApplication().container.grammarChecker,
                 semanticChecker          = everydayEnglishApplication().container.semanticChecker,
                 feedbackGenerator = everydayEnglishApplication().container.feedbackGenerator,
-                dailyCompletionRepository = everydayEnglishApplication().container.dailyCompletionRepository
+                dailyCompletionRepository = everydayEnglishApplication().container.dailyCompletionRepository,
+                correctAnswerRewardApplier = everydayEnglishApplication().container.correctAnswerRewardApplier
             )
         }
 
@@ -73,9 +74,13 @@ object AppViewModelProvider {
         }
         initializer {
             HistoryViewModel(
-                everydayEnglishApplication().container.recordRepository,
-                everydayEnglishApplication().container.exerciseRepository,
-                everydayEnglishApplication().container.appPreferencesRepository
+                recordRepository             = everydayEnglishApplication().container.recordRepository,
+                exerciseRepository           = everydayEnglishApplication().container.exerciseRepository,
+                appPreferencesRepository     = everydayEnglishApplication().container.appPreferencesRepository,
+                grammarChecker                = everydayEnglishApplication().container.grammarChecker,
+                semanticChecker                = everydayEnglishApplication().container.semanticChecker,
+                feedbackGenerator              = everydayEnglishApplication().container.feedbackGenerator,
+                correctAnswerRewardApplier     = everydayEnglishApplication().container.correctAnswerRewardApplier
             )
         }
     }
