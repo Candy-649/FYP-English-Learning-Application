@@ -126,17 +126,17 @@ class HistoryViewModel(
             val grammarResult = grammarChecker.check(userAnswer)
 
             // 跟 submitAnswer 一样：先插入一条 pending 记录，评估完再回填
-            val recordId = recordRepository.insertExerciseRecord(
-                ExerciseRecord(
-                    promptId          = promptId,
-                    userId            = userId,
-                    referId           = matchedAnswer?.referId ?: -1,
-                    userAnswer        = userAnswer,
-                    isCorrect         = false,
-                    grammar           = grammarResult.summary,
-                    evaluationPending = true
-                )
+            val newRecord = ExerciseRecord(
+                promptId          = promptId,
+                userId            = userId,
+                referId           = matchedAnswer?.referId ?: -1,
+                userAnswer        = userAnswer,
+                isCorrect         = false,
+                grammar           = grammarResult.summary,
+                evaluationPending = true
             )
+            recordRepository.insertExerciseRecord(newRecord)
+            val recordId = newRecord.recordId
 
             val semanticResult = try {
                 semanticChecker.evaluate(userAnswer, referenceTexts)
@@ -168,7 +168,7 @@ class HistoryViewModel(
             val isCorrect = evalResult?.isCorrect ?: semanticResult?.isCorrect ?: false
 
             recordRepository.updateEvaluation(
-                recordId  = recordId.toInt(),
+                recordId  = recordId,
                 score     = semanticResult?.score ?: 0.0,
                 feedback  = evalResult?.feedback ?: "",
                 isCorrect = isCorrect

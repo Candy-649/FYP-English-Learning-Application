@@ -4,7 +4,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewmodel.CreationExtras
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
-import com.example.everydayenglish.data.Repository.AttemptRepository
+import com.example.everydayenglish.viewmodel.AuthViewModel
 import com.example.everydayenglish.viewmodel.ExerciseViewModel
 import com.example.everydayenglish.viewmodel.HistoryViewModel
 import com.example.everydayenglish.viewmodel.MainViewModel
@@ -23,7 +23,8 @@ object AppViewModelProvider {
                 everydayEnglishApplication().container.exerciseRepository,
                 everydayEnglishApplication().container.userProfileRepository,
                 everydayEnglishApplication().container.appPreferencesRepository,
-                context = everydayEnglishApplication()
+                everydayEnglishApplication().container.authRepository,
+                everydayEnglishApplication().container.syncRepository
             )
         }
 
@@ -81,6 +82,13 @@ object AppViewModelProvider {
                 semanticChecker                = everydayEnglishApplication().container.semanticChecker,
                 feedbackGenerator              = everydayEnglishApplication().container.feedbackGenerator,
                 correctAnswerRewardApplier     = everydayEnglishApplication().container.correctAnswerRewardApplier
+            )
+        }
+
+        initializer {
+            AuthViewModel(
+                everydayEnglishApplication().container.authRepository,
+                everydayEnglishApplication().container.syncRepository
             )
         }
     }

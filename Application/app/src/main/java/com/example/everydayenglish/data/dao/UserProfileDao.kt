@@ -19,24 +19,24 @@ interface UserProfileDao {
     @Query("SELECT * FROM user_profiles WHERE userId = :userId")
     suspend fun getUserProfile(userId: String): UserProfile?
 
-    @Query("UPDATE user_profiles SET todayProgress = :progress, lastStudiedDate = :date WHERE userId = :userId")
-    suspend fun updateTodayProgress(progress: Int, date: Long, userId: String)
+    @Query("UPDATE user_profiles SET todayProgress = :progress, lastStudiedDate = :date, updatedAt = :updatedAt WHERE userId = :userId")
+    suspend fun updateTodayProgress(progress: Int, date: Long, userId: String, updatedAt: Long)
 
-    @Query("UPDATE user_profiles SET todayCorrectCount = :count WHERE userId = :userId")
-    suspend fun updateTodayCorrectCount(count: Int, userId: String)
+    @Query("UPDATE user_profiles SET todayCorrectCount = :count, updatedAt = :updatedAt WHERE userId = :userId")
+    suspend fun updateTodayCorrectCount(count: Int, userId: String, updatedAt: Long)
 
-    @Query("UPDATE user_profiles SET currentStreak = :streak, lastStudiedDate = :date WHERE userId = :userId")
-    suspend fun updateStreak(streak: Int, date: Long, userId: String)
+    @Query("UPDATE user_profiles SET currentStreak = :streak, lastStudiedDate = :date, updatedAt = :updatedAt WHERE userId = :userId")
+    suspend fun updateStreak(streak: Int, date: Long, userId: String, updatedAt: Long)
 
-    @Query("UPDATE user_profiles SET totalSentencesCompleted = totalSentencesCompleted + 1 WHERE userId = :userId")
-    suspend fun incrementSentencesCompleted(userId: String)
+    @Query("UPDATE user_profiles SET totalSentencesCompleted = totalSentencesCompleted + 1, updatedAt = :updatedAt WHERE userId = :userId")
+    suspend fun incrementSentencesCompleted(userId: String, updatedAt: Long)
 
-    @Query("UPDATE user_profiles SET totalStudyDays = totalStudyDays + 1 WHERE userId = :userId")
-    suspend fun incrementStudyDays(userId: String)
-    @Query("UPDATE user_profiles SET recentSentenceCount = :count WHERE userId = :userId")
-    suspend fun updateSentenceCount(count: Int, userId: String)
-    @Query("UPDATE user_profiles SET dailyGoal = :goal WHERE userId = :userId")
-    suspend fun updateDailyGoal(goal: Int, userId: String)
+    @Query("UPDATE user_profiles SET totalStudyDays = totalStudyDays + 1, updatedAt = :updatedAt WHERE userId = :userId")
+    suspend fun incrementStudyDays(userId: String, updatedAt: Long)
+    @Query("UPDATE user_profiles SET recentSentenceCount = :count, updatedAt = :updatedAt WHERE userId = :userId")
+    suspend fun updateSentenceCount(count: Int, userId: String, updatedAt: Long)
+    @Query("UPDATE user_profiles SET dailyGoal = :goal, updatedAt = :updatedAt WHERE userId = :userId")
+    suspend fun updateDailyGoal(goal: Int, userId: String, updatedAt: Long)
     @Query("SELECT * FROM user_profiles WHERE userId = :userId")
     fun observeUserProfile(userId: String): Flow<UserProfile?>
 }

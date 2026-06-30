@@ -6,6 +6,7 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import com.example.everydayenglish.data.dataStore.PreferencesKeys
 import com.example.everydayenglish.data.Repository.AppPreferencesRepository
+import com.example.everydayenglish.data.Repository.AuthRepository
 import kotlinx.coroutines.flow.first
 import java.io.File
 
@@ -13,11 +14,13 @@ import java.io.File
 class OfflineAppPreferencesRepository(
     private val prefs: SharedPreferences,
     private val dataStore: DataStore<Preferences>,
-    private val cacheDir: File
+    private val cacheDir: File,
+    private val authRepository: AuthRepository
 ) : AppPreferencesRepository {
 
     override fun getUserId(): String =
-        prefs.getString("user_id", "") ?: ""
+        authRepository.currentUserId
+            ?: prefs.getString("user_id", "") ?: ""
 
     override fun saveUserId(userId: String) =
         prefs.edit().putString("user_id", userId).apply()

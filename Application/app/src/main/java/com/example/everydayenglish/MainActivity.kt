@@ -40,6 +40,7 @@ import com.example.everydayenglish.data.PainterDefaults
 import com.example.everydayenglish.navigation.CustomNavController
 import com.example.everydayenglish.navigation.ScreenContent
 import com.example.everydayenglish.ui.theme.EverydayEnglishTheme
+import com.example.everydayenglish.viewmodel.AuthViewModel
 import com.example.everydayenglish.viewmodel.DarkModeOption
 import com.example.everydayenglish.viewmodel.ExerciseViewModel
 import com.example.everydayenglish.viewmodel.HistoryViewModel
@@ -57,6 +58,7 @@ sealed class Screen(val route: String){
     object ProfileScreen: Screen("profile")
     object SplashScreen: Screen("splash")
     object HistoryScreen: Screen("history")
+    object AuthScreen: Screen("auth")
 
 }
 
@@ -94,6 +96,7 @@ fun AppNavigation(){
     val mainViewModel: MainViewModel = viewModel(factory = AppViewModelProvider.Factory)
     val statisticViewModel: StatisticViewModel = viewModel(factory = AppViewModelProvider.Factory)
     val historyViewModel: HistoryViewModel = viewModel(factory = AppViewModelProvider.Factory)
+    val authViewModel: AuthViewModel = viewModel(factory = AppViewModelProvider.Factory)
 
     val settingUiState by settingViewModel.uiState.collectAsState()
     val darkTheme = when (settingUiState.darkModeOption){
@@ -124,8 +127,9 @@ fun AppNavigation(){
                         settingViewModel = settingViewModel,
                         mainViewModel = mainViewModel,
                         statisticViewModel = statisticViewModel,
-                        historyViewModel = historyViewModel
-                        )
+                        historyViewModel = historyViewModel,
+                        authViewModel = authViewModel
+                    )
                 }
 
                 VerticalDivider()
@@ -140,7 +144,8 @@ fun AppNavigation(){
                         exerciseViewModel = exerciseViewModel,
                         statisticViewModel = statisticViewModel,
                         historyViewModel = historyViewModel,
-                        settingViewModel = settingViewModel
+                        settingViewModel = settingViewModel,
+                        authViewModel = authViewModel
                     )
                 }
             }
@@ -161,8 +166,9 @@ fun AppNavigation(){
                         profileViewModel = profileViewModel,
                         historyViewModel = historyViewModel,
                         settingViewModel = settingViewModel,
-                        statisticViewModel = statisticViewModel
-                        )
+                        statisticViewModel = statisticViewModel,
+                        authViewModel = authViewModel
+                    )
                 }
             }
         }
@@ -191,8 +197,9 @@ fun AppNavigation(){
                     profileViewModel = profileViewModel,
                     historyViewModel = historyViewModel,
                     settingViewModel = settingViewModel,
-                    statisticViewModel = statisticViewModel
-                    )
+                    statisticViewModel = statisticViewModel,
+                    authViewModel = authViewModel
+                )
             }
         }
     }

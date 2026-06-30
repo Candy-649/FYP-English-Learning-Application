@@ -27,6 +27,58 @@ val MIGRATION_2_3 = object : Migration(2, 3) {
     }
 }
 
+val MIGRATION_3_4 = object : Migration(3, 4) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE user_profiles ADD COLUMN updatedAt INTEGER NOT NULL DEFAULT 0")
+
+        db.execSQL("""
+            CREATE TABLE exercise_records_new (
+                recordId TEXT NOT NULL PRIMARY KEY,
+                promptId INTEGER NOT NULL,
+                userId TEXT NOT NULL,
+                referId INTEGER NOT NULL,
+                userAnswer TEXT NOT NULL,
+                isCorrect INTEGER NOT NULL,
+                grammar TEXT,
+                semanticScore REAL,
+                feedback TEXT,
+                evaluationPending INTEGER NOT NULL,
+                timestamp INTEGER NOT NULL,
+                updatedAt INTEGER NOT NULL
+            )
+        """.trimIndent())
+        db.execSQL("""
+            INSERT INTO exercise_records_new
+            SELECT 'legacy-' || recordId, promptId, userId, referId, userAnswer, isCorrect,
+                   grammar, semanticScore, feedback, evaluationPending, timestamp, timestamp
+            FROM exercise_records
+        """.trimIndent())
+        db.execSQL("DROP TABLE exercise_records")
+        db.execSQL("ALTER TABLE exercise_records_new RENAME TO exercise_records")
+
+        db.execSQL("""
+            CREATE TABLE question_attempts_new (
+                id TEXT NOT NULL PRIMARY KEY,
+                promptId INTEGER NOT NULL,
+                userId TEXT NOT NULL,
+                tense TEXT NOT NULL,
+                totalTries INTEGER NOT NULL,
+                solved INTEGER NOT NULL,
+                accuracy REAL NOT NULL,
+                timestamp INTEGER NOT NULL,
+                updatedAt INTEGER NOT NULL
+            )
+        """.trimIndent())
+        db.execSQL("""
+            INSERT INTO question_attempts_new
+            SELECT 'legacy-' || id, promptId, userId, tense, totalTries, solved, accuracy, timestamp, timestamp
+            FROM question_attempts
+        """.trimIndent())
+        db.execSQL("DROP TABLE question_attempts")
+        db.execSQL("ALTER TABLE question_attempts_new RENAME TO question_attempts")
+    }
+}
+
 @Database(
     entities = [
         Exercise::class,
@@ -36,7 +88,7 @@ val MIGRATION_2_3 = object : Migration(2, 3) {
         QuestionAttempt::class,
         DailyCompletion::class
     ],
-    version = 3,
+    version = 4,
     exportSchema = false
 )
 @TypeConverters(UriTypeConverter::class)

@@ -28,10 +28,11 @@ datastorePreferencesCore = "1.1.1"
 datastorePreferences = "1.1.1"
 material3 = "1.4.0"
 foundation = "1.11.1"
-onnx = "1.21.0"
+onnx = "1.26.0"
 okhttp = "4.12.0"
 animation = "1.11.2"
 markwon = "4.6.2"
+firebaseBom = "33.7.0"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -74,6 +75,9 @@ onnxruntime-android = { group = "com.microsoft.onnxruntime", name = "onnxruntime
 okhttp = { group = "com.squareup.okhttp3", name = "okhttp", version.ref = "okhttp" }
 androidx-compose-animation = { group = "androidx.compose.animation", name = "animation", version.ref = "animation" }
 markwon-core = { group = "io.noties.markwon", name = "core", version.ref = "markwon" }
+firebase-bom = { group = "com.google.firebase", name = "firebase-bom", version.ref = "firebaseBom" }
+firebase-auth-ktx = { group = "com.google.firebase", name = "firebase-auth-ktx" }
+firebase-firestore-ktx = { group = "com.google.firebase", name = "firebase-firestore-ktx" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

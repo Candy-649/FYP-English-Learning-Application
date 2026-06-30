@@ -3,6 +3,8 @@ package com.example.everydayenglish.data
 import com.example.everydayenglish.BuildConfig
 import android.content.Context
 import androidx.room.Room
+import com.example.everydayenglish.data.FirebaseRepository.FirebaseAuthRepository
+import com.example.everydayenglish.data.FirebaseRepository.FirestoreSyncRepository
 import com.example.everydayenglish.data.OfflineRepository.OfflineAppPreferencesRepository
 import com.example.everydayenglish.data.OfflineRepository.OfflineAttemptRepository
 import com.example.everydayenglish.data.OfflineRepository.OfflineBanditRepository
@@ -12,11 +14,16 @@ import com.example.everydayenglish.data.OfflineRepository.OfflineRecordRepositor
 import com.example.everydayenglish.data.OfflineRepository.OfflineUserProfileRepository
 import com.example.everydayenglish.data.Repository.AppPreferencesRepository
 import com.example.everydayenglish.data.Repository.AttemptRepository
+import com.example.everydayenglish.data.Repository.AuthRepository
 import com.example.everydayenglish.data.Repository.BanditRepository
 import com.example.everydayenglish.data.Repository.DailyCompletionRepository
 import com.example.everydayenglish.data.Repository.ExerciseRepository
 import com.example.everydayenglish.data.Repository.RecordRepository
+import com.example.everydayenglish.data.Repository.SyncRepository
 import com.example.everydayenglish.data.Repository.UserProfileRepository
+import com.example.everydayenglish.data.SyncingRepository.SyncingAttemptRepository
+import com.example.everydayenglish.data.SyncingRepository.SyncingRecordRepository
+import com.example.everydayenglish.data.SyncingRepository.SyncingUserProfileRepository
 import com.example.everydayenglish.data.dataStore.dataStore
 import com.example.everydayenglish.domain.CorrectAnswerRewardApplier
 import com.example.everydayenglish.grammarChecker.GrammarChecker
@@ -38,6 +45,8 @@ interface AppContainer {
     val feedbackGenerator: FeedbackGenerator
     val dailyCompletionRepository: DailyCompletionRepository
     val correctAnswerRewardApplier: CorrectAnswerRewardApplier
+    val authRepository: AuthRepository
+    val syncRepository: SyncRepository
 }
 
 class AppDataContainer(context: Context) : AppContainer {
@@ -47,31 +56,48 @@ class AppDataContainer(context: Context) : AppContainer {
         AppDatabase::class.java,
         "everyday_english_db"
     )
-        .addMigrations(MIGRATION_2_3)
+        .addMigrations(MIGRATION_2_3, MIGRATION_3_4)
         .fallbackToDestructiveMigration(true) // 兜底：以后哪个版本忘了写 migration 也不至于直接崩
         .build()
+
+    override val authRepository: AuthRepository =
+        FirebaseAuthRepository()
+
+    // 这几个是纯本地实现，只给 syncRepository 和下面的 Syncing* 装饰器内部用，
+    // 不直接暴露给 ViewModel —— 暴露出去的是下面包了一层 Syncing 的版本。
+    private val offlineRecordRepository = OfflineRecordRepository(database.recordDao())
+    private val offlineUserProfileRepository = OfflineUserProfileRepository(database.profileDao())
+    private val offlineAttemptRepository = OfflineAttemptRepository(database.questionAttemptDao())
+
+    override val syncRepository: SyncRepository =
+        FirestoreSyncRepository(
+            userProfileRepository = offlineUserProfileRepository,
+            recordRepository = offlineRecordRepository,
+            attemptRepository = offlineAttemptRepository
+        )
 
     override val exerciseRepository: ExerciseRepository =
         OfflineExerciseRepository(database.exerciseDao(), context.applicationContext)
 
     override val recordRepository: RecordRepository =
-        OfflineRecordRepository(database.recordDao())
+        SyncingRecordRepository(offlineRecordRepository, syncRepository, authRepository)
 
     override val userProfileRepository: UserProfileRepository =
-        OfflineUserProfileRepository(database.profileDao())
+        SyncingUserProfileRepository(offlineUserProfileRepository, syncRepository, authRepository)
 
     override val appPreferencesRepository: AppPreferencesRepository =
         OfflineAppPreferencesRepository(
             context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE),
             context.dataStore,
-            context.cacheDir
+            context.cacheDir,
+            authRepository
         )
 
     override val banditRepository: BanditRepository =
         OfflineBanditRepository(database.questionAttemptDao())
 
     override val attemptRepository: AttemptRepository =
-        OfflineAttemptRepository(database.questionAttemptDao())
+        SyncingAttemptRepository(offlineAttemptRepository, syncRepository, authRepository)
 
     // 语法：有网 → LanguageTool，无网 → ONNX
     override val grammarChecker =

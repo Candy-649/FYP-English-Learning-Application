@@ -8,13 +8,13 @@ class OfflineRecordRepository(
     private val exerciseRecordDao: ExerciseRecordDao
 ) : RecordRepository {
 
-    override suspend fun insertExerciseRecord(exerciseRecord: ExerciseRecord): Long =
+    override suspend fun insertExerciseRecord(exerciseRecord: ExerciseRecord) =
         exerciseRecordDao.insertExerciseRecord(exerciseRecord)
 
     override suspend fun getAllExerciseRecords(): List<ExerciseRecord> =
         exerciseRecordDao.getAllExerciseRecords()
 
-    override suspend fun getRecordById(id: Int): ExerciseRecord? =
+    override suspend fun getRecordById(id: String): ExerciseRecord? =
         exerciseRecordDao.getRecordById(id)
 
     override suspend fun deleteExerciseRecord(exerciseRecord: ExerciseRecord) =
@@ -22,10 +22,18 @@ class OfflineRecordRepository(
 
     override suspend fun getRecordsByPromptId(promptId: Int): List<ExerciseRecord> =
         exerciseRecordDao.getRecordsByPromptId(promptId)
+
     override suspend fun getPendingRecords(): List<ExerciseRecord> =
         exerciseRecordDao.getPendingRecords()
-    override suspend fun updateEvaluation(recordId: Int, score: Double, feedback: String, isCorrect: Boolean) =
-        exerciseRecordDao.updateEvaluation(recordId, score, feedback, isCorrect)
+
+    override suspend fun updateEvaluation(
+        recordId: String,
+        score: Double,
+        feedback: String,
+        isCorrect: Boolean,
+        updatedAt: Long
+    ) = exerciseRecordDao.updateEvaluation(recordId, score, feedback, isCorrect, updatedAt)
+
     override suspend fun getAllByUser(userId: String): List<ExerciseRecord> =
         exerciseRecordDao.getAllByUser(userId)
 }

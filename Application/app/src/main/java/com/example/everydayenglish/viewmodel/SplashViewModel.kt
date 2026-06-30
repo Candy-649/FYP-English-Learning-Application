@@ -1,13 +1,13 @@
 package com.example.everydayenglish.viewmodel
 
-import android.content.Context
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.example.everydayenglish.BuildConfig
 import com.example.everydayenglish.data.PainterDefaults
 import com.example.everydayenglish.data.Repository.AppPreferencesRepository
+import com.example.everydayenglish.data.Repository.AuthRepository
 import com.example.everydayenglish.data.Repository.ExerciseRepository
+import com.example.everydayenglish.data.Repository.SyncRepository
 import com.example.everydayenglish.data.Repository.UserProfileRepository
 import com.example.everydayenglish.data.entity.UserProfile
 import kotlinx.coroutines.Dispatchers
@@ -28,7 +28,8 @@ class SplashViewModel(
     private val exerciseRepository: ExerciseRepository,
     private val userProfileRepository: UserProfileRepository,
     private val appPreferencesRepository: AppPreferencesRepository,
-    private val context: Context
+    private val authRepository: AuthRepository,
+    private val syncRepository: SyncRepository
 ) : ViewModel() {
 
     private val _progress = MutableStateFlow(0)
@@ -64,6 +65,15 @@ class SplashViewModel(
                 if (exercises.isEmpty()) {
                     _statusText.value = "Loading exercises..."
                     exerciseRepository.importExercises()
+                }
+            },
+            Step(weight = 1) {
+                // Firebase 的登录状态会跨重启自动保留，已登录的话每次开 app 都拉一次最新数据，
+                // 这样在另一台设备上做的题，回到这台设备打开 app 就能看到。
+                val uid = authRepository.currentUserId
+                if (uid != null) {
+                    _statusText.value = "Syncing your data..."
+                    runCatching { syncRepository.pullAndMerge(uid) }
                 }
             },
             Step(weight = 1) {

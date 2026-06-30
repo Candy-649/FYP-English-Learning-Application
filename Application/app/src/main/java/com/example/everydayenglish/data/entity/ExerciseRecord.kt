@@ -1,12 +1,14 @@
 package com.example.everydayenglish.data.entity
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.PrimaryKey
+import java.util.UUID
 
 @Entity(tableName = "exercise_records")
 data class ExerciseRecord(
-    @PrimaryKey(autoGenerate = true)
-    val recordId: Int = 0,
+    @PrimaryKey
+    val recordId: String = UUID.randomUUID().toString(),   // 全局唯一，多设备生成不会撞车
     val promptId: Int,
     val userId: String,
     val referId: Int,
@@ -16,5 +18,6 @@ data class ExerciseRecord(
     val semanticScore: Double? = null,
     val feedback: String? = null,
     val evaluationPending: Boolean = false,
-    val timestamp: Long = System.currentTimeMillis()
+    val timestamp: Long = System.currentTimeMillis(),
+    val updatedAt: Long = System.currentTimeMillis()       // 第三轮做 last-write-wins 合并用
 )

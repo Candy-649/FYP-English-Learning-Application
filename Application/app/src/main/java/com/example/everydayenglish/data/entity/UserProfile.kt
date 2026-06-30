@@ -1,6 +1,7 @@
 package com.example.everydayenglish.data.entity
 
 import android.net.Uri
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 
@@ -17,7 +18,10 @@ data class UserProfile(
     val currentStreak: Int = 0,
     val dailyGoal: Int = 10,
     val todayProgress: Int = 0,
+    @ColumnInfo(defaultValue = "0")
     val todayCorrectCount: Int = 0,
     val lastStudiedDate: Long = 0L,
-    val recentSentenceCount: Int = 20
+    val recentSentenceCount: Int = 20,
+    @ColumnInfo(defaultValue = "0")
+    val updatedAt: Long = System.currentTimeMillis()   // 第三轮做 last-write-wins 合并用
 )

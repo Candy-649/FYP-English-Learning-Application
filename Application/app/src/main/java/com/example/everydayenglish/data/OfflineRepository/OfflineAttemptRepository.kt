@@ -8,6 +8,7 @@ class OfflineAttemptRepository(
     private val questionAttemptDao: QuestionAttemptDao
 ) : AttemptRepository {
     override suspend fun insert(attempt: QuestionAttempt) = questionAttemptDao.insert(attempt)
+    override suspend fun upsert(attempt: QuestionAttempt) = questionAttemptDao.upsert(attempt)
     override suspend fun getRecent(limit: Int): List<QuestionAttempt> = questionAttemptDao.getRecent(limit)
     override suspend fun getAllByUser(userId: String): List<QuestionAttempt> =
         questionAttemptDao.getAllByUser(userId)

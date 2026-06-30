@@ -183,17 +183,17 @@ class ExerciseViewModel(
             val referenceTexts = exercise.answers.map { it.reference }
 
             //Start Semantic
-            val recordId = recordRepository.insertExerciseRecord(
-                ExerciseRecord(
-                    promptId          = exercise.exercise.promptId,
-                    userId            = userId,
-                    referId           = matchedAnswer?.referId ?: -1,
-                    userAnswer        = userAnswer,
-                    isCorrect         = false,
-                    grammar           = grammarResult.summary,
-                    evaluationPending = true,
-                )
+            val newRecord = ExerciseRecord(
+                promptId          = exercise.exercise.promptId,
+                userId            = userId,
+                referId           = matchedAnswer?.referId ?: -1,
+                userAnswer        = userAnswer,
+                isCorrect         = false,
+                grammar           = grammarResult.summary,
+                evaluationPending = true,
             )
+            recordRepository.insertExerciseRecord(newRecord)
+            val recordId = newRecord.recordId
 
             _uiState.update {
                 it.copy(
@@ -240,7 +240,7 @@ class ExerciseViewModel(
 
 
             recordRepository.updateEvaluation(
-                recordId  = recordId.toInt(),
+                recordId  = recordId,
                 score     = semanticResult?.score ?: 0.0,
                 feedback  = evalResult?.feedback ?: "",
                 isCorrect = evalResult?.isCorrect ?: semanticResult?.isCorrect ?: false

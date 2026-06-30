@@ -19,6 +19,7 @@ fun ScreenContent(
     historyViewModel: HistoryViewModel,
     settingViewModel: SettingViewModel,
     splashViewModel: SplashViewModel,
+    authViewModel: AuthViewModel,
 ) {
     when (route) {
 
@@ -97,6 +98,8 @@ fun ScreenContent(
         }
 
         Screen.SettingScreen.route -> {
+            LaunchedEffect(route) { authViewModel.refresh() }
+            val authUiState = authViewModel.uiState.collectAsState().value
             SettingScreen(
                 uiState                 = settingViewModel.uiState.collectAsState().value,
                 onBackClick             = { nav.popBackTo(Screen.MainScreen.route) },
@@ -105,7 +108,24 @@ fun ScreenContent(
                 onDarkModeChange        = { settingViewModel.updateDarkMode(it) },
                 onDarkModeOptionChange  = { settingViewModel.updateDarkModeOption(it) },
                 onSentenceCountConfirm  = { settingViewModel.updateSentenceCount(it) },
-                onDailyGoalConfirm      = { settingViewModel.updateDailyGoal(it) }
+                onDailyGoalConfirm      = { settingViewModel.updateDailyGoal(it) },
+                isLoggedIn              = authUiState.currentUserEmail != null,
+                currentUserEmail        = authUiState.currentUserEmail,
+                onAccountClick          = { nav.navigate(Screen.AuthScreen.route) },
+                onLogoutClick           = { authViewModel.logout() }
+            )
+        }
+
+        Screen.AuthScreen.route -> {
+            LaunchedEffect(route) { authViewModel.refresh() }
+            AuthScreen(
+                uiState          = authViewModel.uiState.collectAsState().value,
+                onBackClick      = { nav.popBack() },
+                onSkipClick      = { nav.popBack() },
+                onModeChange     = { authViewModel.switchMode(it) },
+                onEmailChange    = { authViewModel.updateEmail(it) },
+                onPasswordChange = { authViewModel.updatePassword(it) },
+                onSubmit         = { authViewModel.submit(onSuccess = { nav.popBack() }) }
             )
         }
     }

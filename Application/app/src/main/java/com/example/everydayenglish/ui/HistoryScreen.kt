@@ -636,7 +636,7 @@ private fun RecordRowPreview() {
     RecordRow(
         attemptNumber = 1,
         record = ExerciseRecord(
-            recordId = 1,
+            recordId = "preview-1",
             promptId = 1,
             userId = "preview",
             referId = 1,

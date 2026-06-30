@@ -55,7 +55,12 @@ fun SettingScreen(
 
     onSentenceCountConfirm: (Int) -> Unit,
 
-    onDailyGoalConfirm: (Int) -> Unit
+    onDailyGoalConfirm: (Int) -> Unit,
+
+    isLoggedIn: Boolean = false,
+    currentUserEmail: String? = null,
+    onAccountClick: () -> Unit = {},
+    onLogoutClick: () -> Unit = {}
 ) {
     var showDarkModeSheet by remember { mutableStateOf(false) }
     var showSentenceSheet    by remember { mutableStateOf(false) }
@@ -166,6 +171,36 @@ fun SettingScreen(
                     )
                 )
         ) {
+
+            Column {
+
+                Text(
+                    "Account",
+                    modifier = Modifier.padding(4.dp),
+                    style = MaterialTheme.typography.titleLarge
+                )
+
+                SettingsSection {
+                    if (isLoggedIn) {
+                        SettingsInfoItem(
+                            text = "Logged in as",
+                            value = currentUserEmail ?: "",
+                            onClick = onAccountClick
+                        )
+                        SettingsInfoItem(
+                            text = "Log out / Switch account",
+                            value = "",
+                            onClick = onLogoutClick
+                        )
+                    } else {
+                        SettingsInfoItem(
+                            text = "Account",
+                            value = "Not logged in",
+                            onClick = onAccountClick
+                        )
+                    }
+                }
+            }
 
             Column {
 
