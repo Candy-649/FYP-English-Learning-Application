@@ -3,6 +3,7 @@ package com.example.everydayenglish.navigation
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.remember
 import androidx.core.net.toUri
 import com.example.everydayenglish.Screen
 import com.example.everydayenglish.ui.*
@@ -58,10 +59,48 @@ fun ScreenContent(
                 onUserNameChange   = profileViewModel::updateUserName,
                 onBioChange        = profileViewModel::updateBio,
                 onSaveProfile      = profileViewModel::saveProfile,
-                onAvatarChange     = profileViewModel::updateAvatar,
-                onBackgroundChange = profileViewModel::updateBackground,
+                onRequestCrop      = { uri, target ->
+                    profileViewModel.requestCrop(uri, target)
+                    nav.navigate(Screen.ImageCropScreen.route)
+                },
                 onSetEditing       = profileViewModel::setEditing
             )
+        }
+
+        Screen.ImageCropScreen.route -> {
+            // remember, not collectAsState: we only need this route's OWN request, captured
+            // once on entry. If this kept observing the live StateFlow, onConfirm/onCancel
+            // clearing cropRequest to null (as part of normal completion) would make this
+            // branch see request==null while still composed and fire the null-guard below
+            // a second time, double-popping the nav stack.
+            val request = remember { profileViewModel.cropRequest.value }
+            if (request == null) {
+                // Nothing pending (e.g. process death mid-crop) - bail back rather than
+                // rendering a crop screen with no source image.
+                LaunchedEffect(Unit) { nav.popBack() }
+            } else {
+                val isAvatar = request.target == CropTarget.AVATAR
+                ImageCropScreen(
+                    sourceUri          = request.sourceUri,
+                    shape              = if (isAvatar) CropShape.CIRCLE else CropShape.RECT,
+                    // null for background = derive from this device's actual screen ratio
+                    // instead of guessing a fixed one (see ImageCropScreen for why).
+                    aspectRatio        = if (isAvatar) 1f else null,
+                    outputFileName     = if (isAvatar)
+                        "user_avatar_${System.currentTimeMillis()}.jpg"
+                    else
+                        "profile_background_${System.currentTimeMillis()}.jpg",
+                    maxOutputDimension = if (isAvatar) 512 else 1024,
+                    onConfirm          = { croppedUri ->
+                        profileViewModel.consumeCropResult(croppedUri)
+                        nav.popBack()
+                    },
+                    onCancel           = {
+                        profileViewModel.cancelCrop()
+                        nav.popBack()
+                    }
+                )
+            }
         }
 
         Screen.ExerciseScreen.route -> {
@@ -125,9 +164,9 @@ fun ScreenContent(
 
         Screen.AuthScreen.route -> {
             LaunchedEffect(route) { authViewModel.refresh() }
-            // Gate 场景（Splash 直接落地到这里）stack 里只有这一个 route，没有"返回"的地方；
-            // 从 Settings 主动点进来的场景 stack 里有上一页。两种场景统一处理：
-            // 能 popBack 就 popBack，不能就清栈直接进 MainScreen。
+            // Gate scenario (Splash lands directly here): stack only has this one route,
+            // nowhere to "go back" to. Coming in from Settings: stack has a previous page.
+            // Handle both the same way: popBack if possible, otherwise clear and go to Main.
             val landOnMain: () -> Unit = {
                 if (nav.canGoBack) nav.popBack()
                 else {

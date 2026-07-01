@@ -59,6 +59,7 @@ sealed class Screen(val route: String){
     object SplashScreen: Screen("splash")
     object HistoryScreen: Screen("history")
     object AuthScreen: Screen("auth")
+    object ImageCropScreen: Screen("image_crop")
 
 }
 
@@ -115,7 +116,7 @@ fun AppNavigation(){
         BackHandler(enabled = nav.canGoBack) { nav.popBack() }
 
         if (useDualPane && nav.previousRoute != null) {
-            //
+
             Row(Modifier.fillMaxSize()) {
                 Box(Modifier.weight(1f)) {
                     ScreenContent(

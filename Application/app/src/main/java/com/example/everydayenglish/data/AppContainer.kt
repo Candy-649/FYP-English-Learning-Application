@@ -4,6 +4,7 @@ import com.example.everydayenglish.BuildConfig
 import android.content.Context
 import androidx.room.Room
 import com.example.everydayenglish.data.FirebaseRepository.FirebaseAuthRepository
+import com.example.everydayenglish.data.FirebaseRepository.FirebaseAvatarStorageRepository
 import com.example.everydayenglish.data.FirebaseRepository.FirestoreSyncRepository
 import com.example.everydayenglish.data.OfflineRepository.OfflineAppPreferencesRepository
 import com.example.everydayenglish.data.OfflineRepository.OfflineAttemptRepository
@@ -15,6 +16,7 @@ import com.example.everydayenglish.data.OfflineRepository.OfflineUserProfileRepo
 import com.example.everydayenglish.data.Repository.AppPreferencesRepository
 import com.example.everydayenglish.data.Repository.AttemptRepository
 import com.example.everydayenglish.data.Repository.AuthRepository
+import com.example.everydayenglish.data.Repository.AvatarStorageRepository
 import com.example.everydayenglish.data.Repository.BanditRepository
 import com.example.everydayenglish.data.Repository.DailyCompletionRepository
 import com.example.everydayenglish.data.Repository.ExerciseRepository
@@ -47,6 +49,7 @@ interface AppContainer {
     val correctAnswerRewardApplier: CorrectAnswerRewardApplier
     val authRepository: AuthRepository
     val syncRepository: SyncRepository
+    val avatarStorageRepository: AvatarStorageRepository
 }
 
 class AppDataContainer(context: Context) : AppContainer {
@@ -57,14 +60,18 @@ class AppDataContainer(context: Context) : AppContainer {
         "everyday_english_db"
     )
         .addMigrations(MIGRATION_2_3, MIGRATION_3_4)
-        .fallbackToDestructiveMigration(true) // 兜底：以后哪个版本忘了写 migration 也不至于直接崩
+        .fallbackToDestructiveMigration(true) // fallback: if a future version forgets a migration, this avoids a hard crash
         .build()
 
     override val authRepository: AuthRepository =
         FirebaseAuthRepository()
 
-    // 这几个是纯本地实现，只给 syncRepository 和下面的 Syncing* 装饰器内部用，
-    // 不直接暴露给 ViewModel —— 暴露出去的是下面包了一层 Syncing 的版本。
+    override val avatarStorageRepository: AvatarStorageRepository =
+        FirebaseAvatarStorageRepository()
+
+    // These are pure local implementations, only used internally by syncRepository and the
+    // Syncing* decorators below - not exposed directly to ViewModels, which get the
+    // Syncing-wrapped versions instead.
     private val offlineRecordRepository = OfflineRecordRepository(database.recordDao())
     private val offlineUserProfileRepository = OfflineUserProfileRepository(database.profileDao())
     private val offlineAttemptRepository = OfflineAttemptRepository(database.questionAttemptDao())
@@ -99,11 +106,11 @@ class AppDataContainer(context: Context) : AppContainer {
     override val attemptRepository: AttemptRepository =
         SyncingAttemptRepository(offlineAttemptRepository, syncRepository, authRepository)
 
-    // 语法：有网 → LanguageTool，无网 → ONNX
+    // Grammar: online -> LanguageTool, offline -> ONNX
     override val grammarChecker =
         SmartGrammarChecker(context.applicationContext)
 
-    // 语义：Claude Haiku（API Key 从 local.properties → BuildConfig 注入）
+    // Semantic scoring (API key injected via local.properties -> BuildConfig)
     override val semanticChecker: SemanticChecker =
         HuggingFaceSemanticChecker(apiToken = BuildConfig.HF_API_TOKEN)
     override val feedbackGenerator: FeedbackGenerator =

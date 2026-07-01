@@ -1,5 +1,6 @@
 package com.example.everydayenglish.viewmodel
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.everydayenglish.data.PainterDefaults
@@ -7,6 +8,7 @@ import com.example.everydayenglish.data.Repository.AuthRepository
 import com.example.everydayenglish.data.Repository.SyncRepository
 import com.example.everydayenglish.data.Repository.UserProfileRepository
 import com.example.everydayenglish.data.entity.UserProfile
+import com.example.everydayenglish.util.prefetchImage
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
@@ -26,7 +28,8 @@ data class AuthUiState(
 class AuthViewModel(
     private val authRepository: AuthRepository,
     private val syncRepository: SyncRepository,
-    private val userProfileRepository: UserProfileRepository
+    private val userProfileRepository: UserProfileRepository,
+    private val appContext: Context
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(
@@ -57,6 +60,9 @@ class AuthViewModel(
             authRepository.continueAsGuest()
                 .onSuccess { uid ->
                     ensureProfileExists(uid)
+                    // No prefetch needed here: a brand new anonymous account always starts
+                    // with the local default avatar/background (see ensureProfileExists),
+                    // never a remote URL, so there's nothing to warm the cache for yet.
                     _uiState.update { it.copy(isLoading = false) }
                     onSuccess()
                 }
@@ -91,6 +97,16 @@ class AuthViewModel(
                     // 登录一个已存在的正式账号才需要拉云端数据合并到本地；
                     // REGISTER 要么是账号升级（本地数据已经在了，不用拉），要么是全新账号（云端本来就是空的）
                     runCatching { syncRepository.pullAndMerge(uid) }
+
+                    // Login is the one path where avatarUri/profileBackgroundUri can suddenly
+                    // become a remote https URL this device has never fetched before (set on
+                    // another device, just pulled in above). Warm Coil's cache for it now,
+                    // while isLoading is still true and the login button already shows a
+                    // spinner - by the time we navigate to Main/Profile it should be cached.
+                    userProfileRepository.getUserProfile(uid)?.let { profile ->
+                        prefetchImage(appContext, profile.avatarUri)
+                        prefetchImage(appContext, profile.profileBackgroundUri)
+                    }
                 }
                 // 兜底：不管走哪条路径，确保这个 uid 名下本地有一份 profile
                 // （正常情况下 pullAndMerge 或者升级前的匿名 session 已经有了，这里只是兜底）

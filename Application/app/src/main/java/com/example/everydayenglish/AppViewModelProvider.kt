@@ -47,7 +47,9 @@ object AppViewModelProvider {
             ProfileViewModel(
                 everydayEnglishApplication().container.userProfileRepository,
                 everydayEnglishApplication().container.appPreferencesRepository,
-                dailyCompletionRepository = everydayEnglishApplication().container.dailyCompletionRepository
+                dailyCompletionRepository = everydayEnglishApplication().container.dailyCompletionRepository,
+                avatarStorageRepository = everydayEnglishApplication().container.avatarStorageRepository,
+                appContext = everydayEnglishApplication()
             )
         }
 
@@ -88,7 +90,8 @@ object AppViewModelProvider {
             AuthViewModel(
                 everydayEnglishApplication().container.authRepository,
                 everydayEnglishApplication().container.syncRepository,
-                everydayEnglishApplication().container.userProfileRepository
+                everydayEnglishApplication().container.userProfileRepository,
+                appContext = everydayEnglishApplication()
             )
         }
     }

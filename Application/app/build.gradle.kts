@@ -83,6 +83,8 @@ dependencies {
     implementation(libs.androidx.compose.foundation)
     implementation(libs.onnxruntime.android)
     implementation(libs.androidx.compose.animation)
+    implementation(libs.firebase.storage.ktx)
+    implementation(libs.androidx.exifinterface)
     ksp(libs.androidx.room.compiler)
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.room.ktx)

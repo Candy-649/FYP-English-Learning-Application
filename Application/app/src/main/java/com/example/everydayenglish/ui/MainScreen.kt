@@ -39,6 +39,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.res.dimensionResource
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
@@ -95,6 +96,11 @@ fun MainScreen(
                                 model = uiState.userAvatar,
                                 contentDescription = "Avatar",
                                 contentScale = ContentScale.Crop,
+                                // Shown while a freshly-uploaded avatar's https URL is still
+                                // being fetched over the network (first load per device), and
+                                // as a fallback if the fetch fails - avoids a blank/broken spot.
+                                placeholder = painterResource(R.drawable.default_avatar),
+                                error = painterResource(R.drawable.default_avatar),
                                 modifier = Modifier
                                     .size(dimensionResource(R.dimen.avatar_size))
                                     .clip(CircleShape)

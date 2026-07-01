@@ -71,6 +71,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.dimensionResource
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.rememberTextMeasurer
@@ -88,28 +89,11 @@ import kotlin.math.sin
 import androidx.core.net.toUri
 import coil.request.CachePolicy
 import coil.request.ImageRequest
+import com.example.everydayenglish.viewmodel.CropTarget
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
-
-private suspend fun copyUriToInternalStorage(
-    context: Context,
-    sourceUri: Uri,
-    fileName: String
-): Uri? = withContext(Dispatchers.IO) {
-    try {
-        val inputStream =
-            context.contentResolver.openInputStream(sourceUri) ?: return@withContext null
-        val file = File(context.filesDir, fileName)
-        file.outputStream().use { out ->
-            inputStream.use { it.copyTo(out) }
-        }
-        Uri.fromFile(file)
-    } catch (_: Exception) {
-        null
-    }
-}
 
 @Composable
 fun ProfileScreen(
@@ -119,46 +103,33 @@ fun ProfileScreen(
     onUserNameChange: (String) -> Unit = {},
     onBioChange: (String) -> Unit = {},
     onSaveProfile: () -> Unit = {},
-    onAvatarChange: (Uri) -> Unit = {},
-    onBackgroundChange: (Uri) -> Unit = {},
+    onRequestCrop: (Uri, CropTarget) -> Unit = { _, _ -> },
     onSetEditing: (Boolean) -> Unit = {}
 ) {
-    var isEditing by remember { mutableStateOf(false) }
-    var editName  by remember { mutableStateOf("") }
-    var editBio   by remember { mutableStateOf("") }
+    // isEditing lives in uiState (ViewModel-owned), not local remember - local state here
+    // gets wiped whenever this composable is torn down and rebuilt (e.g. navigating to the
+    // crop screen and back), which used to desync from the ViewModel's own copy and cause
+    // loadProfile() to stomp on avatar/background changes made mid-edit-session.
+    val isEditing = uiState.isEditing
+    // Re-derive whenever isEditing flips (including on a fresh remount where it's already
+    // true) instead of only syncing inside the Edit button's onClick.
+    var editName by remember(uiState.isEditing) { mutableStateOf(uiState.userName) }
+    var editBio by remember(uiState.isEditing) { mutableStateOf(uiState.bio) }
     val currentAvatarUri by rememberUpdatedState(uiState.userAvatar)
     val currentBackgroundUri by rememberUpdatedState(uiState.profileBackground)
 
-
-    val context = LocalContext.current
-    val scope   = rememberCoroutineScope()
-    //photo selector
+    //photo selector - picks a raw image, then hands it off to the crop screen rather
+    //than saving it directly. The crop screen produces the final resized local file.
     val avatarLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.GetContent()
     ) { uri ->
-        uri?.let {
-            scope.launch {
-                val fileName = "user_avatar_${System.currentTimeMillis()}.jpg"
-                val saved = copyUriToInternalStorage(context, it, fileName)
-                saved?.let { newUri ->
-                    onAvatarChange(newUri)
-                }
-            }
-        }
+        uri?.let { onRequestCrop(it, CropTarget.AVATAR) }
     }
 
     val backgroundLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.GetContent()
     ) { uri ->
-        uri?.let {
-            scope.launch {
-                val fileName = "profile_background_${System.currentTimeMillis()}.jpg"
-                val saved = copyUriToInternalStorage(context, it, fileName)
-                saved?.let { newUri ->
-                    onBackgroundChange(newUri)
-                }
-            }
-        }
+        uri?.let { onRequestCrop(it, CropTarget.BACKGROUND) }
     }
 
     val curvedShape = GenericShape { size, _ ->
@@ -182,7 +153,6 @@ fun ProfileScreen(
                 navigationIcon = {
                     IconButton(onClick = {
                         if (isEditing) {
-                            isEditing = false
                             onSetEditing(false)
                         } else onBackClick()
                     }) {
@@ -200,7 +170,6 @@ fun ProfileScreen(
                             onUserNameChange(editName.trim())
                             onBioChange(editBio.trim())
                             onSaveProfile()
-                            isEditing = false
                             onSetEditing(false)
                         }) {
                             Icon(
@@ -211,9 +180,6 @@ fun ProfileScreen(
                         }
                     } else {
                         IconButton(onClick = {
-                            editName = uiState.userName
-                            editBio  = uiState.bio
-                            isEditing = true
                             onSetEditing(true)
                         }) {
                             Icon(
@@ -240,7 +206,9 @@ fun ProfileScreen(
                     model = uiState.profileBackground,
                     contentDescription = null,
                     modifier = Modifier.fillMaxSize(),
-                    contentScale = ContentScale.Crop
+                    contentScale = ContentScale.Crop,
+                    placeholder = painterResource(R.drawable.default_profile_background),
+                    error = painterResource(R.drawable.default_profile_background)
                 )
                 if (isEditing) {
                     Box(
@@ -335,6 +303,8 @@ fun ProfileScreen(
                     AsyncImage(
                         model              = uiState.userAvatar,
                         contentDescription = "Avatar",
+                        placeholder        = painterResource(R.drawable.default_avatar),
+                        error              = painterResource(R.drawable.default_avatar),
                         modifier           = Modifier
                             .fillMaxSize()
                             .clip(CircleShape)
@@ -386,7 +356,7 @@ private fun InlineEditField(
     val textMeasurer = rememberTextMeasurer()
     val iconSize     = 14.dp
 
-    // 文字为空时测 hint 宽度，否则测当前文字宽度，随输入实时刷新
+    // measure hint width when text is empty, otherwise measure current text width, refreshed live as typing happens
     val measuredPx = remember(value, hint, textStyle) {
         val sample = value.ifEmpty { hint }
         textMeasurer.measure(sample, textStyle).size.width
@@ -397,8 +367,8 @@ private fun InlineEditField(
         contentAlignment = Alignment.Center,
         modifier = modifier.fillMaxWidth()
     ) {
-        val fieldWidth = (measuredDp + 8.dp)       // +8dp 留给末尾光标
-            .coerceAtMost(maxWidth * 0.78f)         // 超长时截断，防溢出
+        val fieldWidth = (measuredDp + 8.dp)       // +8dp reserved for the trailing cursor
+            .coerceAtMost(maxWidth * 0.78f)         // truncate when too long, to avoid overflow
 
         Row(verticalAlignment = Alignment.Bottom) {
 
@@ -548,7 +518,7 @@ fun BubbleCloud(bubbles: List<ProfileBubble>) {
             }
     ) {
 
-        //计算
+        // sort by value
         val sorted = remember(bubbles) { bubbles.sortedByDescending { it.value } }
         val sizes = remember(sorted) { sorted.map { it.size } }
 
@@ -583,7 +553,7 @@ fun BubbleCloud(bubbles: List<ProfileBubble>) {
             }
         }
 
-        //报错过，需要防止height太矮
+        // guard against a too-short height causing overflow
         val expandedRadius = minOf(maxWidth, maxHeight) * 3f / 8f
 
         val expandedCenters = remember(anchorCenters, expandedRadius) {
@@ -593,7 +563,7 @@ fun BubbleCloud(bubbles: List<ProfileBubble>) {
             }
         }
 
-        //给数值
+        // assign values
         sorted.forEachIndexed { index, bubble ->
             key(bubble.id) {
                 val selected = selectedBubble == bubble
@@ -614,7 +584,7 @@ fun BubbleCloud(bubbles: List<ProfileBubble>) {
                     label = "cy"
                 )
 
-                //动态
+                // floating animation
                 val floatTransition = rememberInfiniteTransition(label = "float_$index")
                 val amplitude = minOf(4f + index * 1.5f, 8f)
                 val floatY by floatTransition.animateFloat(
@@ -629,7 +599,7 @@ fun BubbleCloud(bubbles: List<ProfileBubble>) {
                     ),
                     label = "float_y_$index"
                 )
-                //防止动画冲突
+                // avoid animation conflicts
                 val floatOffset = if (selectedBubble == null) floatY.dp else 0.dp
 
                 BubbleItem(
