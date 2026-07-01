@@ -50,9 +50,58 @@ fun AuthScreen(
     onModeChange: (AuthMode) -> Unit,
     onEmailChange: (String) -> Unit,
     onPasswordChange: (String) -> Unit,
-    onSubmit: () -> Unit
+    onSubmit: () -> Unit,
+    onLogoutClick: () -> Unit = {}
 ) {
     var passwordVisible by remember { mutableStateOf(false) }
+
+    // 已经登录了就不显示登录表单——改显示"当前登录的是谁 + 登出"，
+    // 不然点进这个页面会让人误以为还没登录。
+    if (uiState.currentUserEmail != null) {
+        Scaffold(
+            topBar = {
+                TopAppBar(
+                    title = { Text("Account") },
+                    navigationIcon = {
+                        IconButton(onClick = onBackClick) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = "Back"
+                            )
+                        }
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = MaterialTheme.colorScheme.primaryContainer
+                    )
+                )
+            }
+        ) { paddingValues ->
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues)
+                    .padding(dimensionResource(R.dimen.padding_medium)),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                Text(
+                    text = "Logged in as",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Text(
+                    text = uiState.currentUserEmail,
+                    style = MaterialTheme.typography.titleMedium
+                )
+                Button(
+                    onClick = onLogoutClick,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Log out / Switch account")
+                }
+            }
+        }
+        return
+    }
 
     Scaffold(
         topBar = {

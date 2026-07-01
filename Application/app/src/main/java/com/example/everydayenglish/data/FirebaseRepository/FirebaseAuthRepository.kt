@@ -3,6 +3,7 @@ package com.example.everydayenglish.data.FirebaseRepository
 import com.example.everydayenglish.data.Repository.AuthRepository
 import com.google.android.gms.tasks.Task
 import com.google.firebase.auth.AuthResult
+import com.google.firebase.auth.EmailAuthProvider
 import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlin.coroutines.resume
@@ -18,9 +19,26 @@ class FirebaseAuthRepository(
     override val currentUserEmail: String?
         get() = auth.currentUser?.email
 
+    override val isAnonymous: Boolean
+        get() = auth.currentUser?.isAnonymous ?: false
+
+    override suspend fun continueAsGuest(): Result<String> = runCatching {
+        // 已经有 session（匿名或正式）就直接复用，不重复创建匿名账号
+        auth.currentUser?.uid?.let { return@runCatching it }
+        val result = auth.signInAnonymously().awaitResult()
+        result.user?.uid ?: error("Anonymous sign-in succeeded but no user was returned.")
+    }
+
     override suspend fun register(email: String, password: String): Result<String> =
         runCatching {
-            val result = auth.createUserWithEmailAndPassword(email, password).awaitResult()
+            val current = auth.currentUser
+            val result = if (current != null && current.isAnonymous) {
+                // 账号升级：匿名 -> 邮箱密码，uid 不变，本地/云端数据天然延续，不用手动搬
+                val credential = EmailAuthProvider.getCredential(email, password)
+                current.linkWithCredential(credential).awaitResult()
+            } else {
+                auth.createUserWithEmailAndPassword(email, password).awaitResult()
+            }
             result.user?.uid ?: error("Registration succeeded but no user was returned.")
         }
 

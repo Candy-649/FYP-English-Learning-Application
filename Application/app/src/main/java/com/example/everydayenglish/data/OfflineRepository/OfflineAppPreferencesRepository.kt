@@ -18,10 +18,14 @@ class OfflineAppPreferencesRepository(
     private val authRepository: AuthRepository
 ) : AppPreferencesRepository {
 
+    // 第四轮起，guest 也是真正的 Firebase 匿名账号了，不再需要本地生成的 UUID 兜底——
+    // 任何能看到需要 userId 的界面（MainScreen/Exercise/...）都已经过了 Gate，
+    // 此时 currentUserId 必然不为空（匿名或正式账号）。
     override fun getUserId(): String =
-        authRepository.currentUserId
-            ?: prefs.getString("user_id", "") ?: ""
+        authRepository.currentUserId ?: ""
 
+    // saveUserId/isFirstLaunch 是旧的本地 guest UUID 方案留下的，现在没人调用了，
+    // 接口签名先留着不动（避免牵连其他实现类），等以后清理无用代码的时候再删。
     override fun saveUserId(userId: String) =
         prefs.edit().putString("user_id", userId).apply()
 

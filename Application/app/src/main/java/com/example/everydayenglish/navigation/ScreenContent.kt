@@ -24,10 +24,13 @@ fun ScreenContent(
     when (route) {
 
         Screen.SplashScreen.route -> {
+            val needsAuthGate = splashViewModel.needsAuthGate.collectAsState().value
             SplashScreen(
                 onNavigation = {
                     nav.stack.clear()
-                    nav.navigate(Screen.MainScreen.route)
+                    nav.navigate(
+                        if (needsAuthGate) Screen.AuthScreen.route else Screen.MainScreen.route
+                    )
                 },
                 viewModel = splashViewModel
             )
@@ -112,20 +115,39 @@ fun ScreenContent(
                 isLoggedIn              = authUiState.currentUserEmail != null,
                 currentUserEmail        = authUiState.currentUserEmail,
                 onAccountClick          = { nav.navigate(Screen.AuthScreen.route) },
-                onLogoutClick           = { authViewModel.logout() }
+                onLogoutClick           = {
+                    authViewModel.logout()
+                    nav.stack.clear()
+                    nav.navigate(Screen.AuthScreen.route)
+                }
             )
         }
 
         Screen.AuthScreen.route -> {
             LaunchedEffect(route) { authViewModel.refresh() }
+            // Gate 场景（Splash 直接落地到这里）stack 里只有这一个 route，没有"返回"的地方；
+            // 从 Settings 主动点进来的场景 stack 里有上一页。两种场景统一处理：
+            // 能 popBack 就 popBack，不能就清栈直接进 MainScreen。
+            val landOnMain: () -> Unit = {
+                if (nav.canGoBack) nav.popBack()
+                else {
+                    nav.stack.clear()
+                    nav.navigate(Screen.MainScreen.route)
+                }
+            }
             AuthScreen(
                 uiState          = authViewModel.uiState.collectAsState().value,
                 onBackClick      = { nav.popBack() },
-                onSkipClick      = { nav.popBack() },
+                onSkipClick      = { authViewModel.continueAsGuest(onSuccess = landOnMain) },
                 onModeChange     = { authViewModel.switchMode(it) },
                 onEmailChange    = { authViewModel.updateEmail(it) },
                 onPasswordChange = { authViewModel.updatePassword(it) },
-                onSubmit         = { authViewModel.submit(onSuccess = { nav.popBack() }) }
+                onSubmit         = { authViewModel.submit(onSuccess = landOnMain) },
+                onLogoutClick    = {
+                    authViewModel.logout()
+                    nav.stack.clear()
+                    nav.navigate(Screen.AuthScreen.route)
+                }
             )
         }
     }

@@ -2,8 +2,11 @@ package com.example.everydayenglish.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.everydayenglish.data.PainterDefaults
 import com.example.everydayenglish.data.Repository.AuthRepository
 import com.example.everydayenglish.data.Repository.SyncRepository
+import com.example.everydayenglish.data.Repository.UserProfileRepository
+import com.example.everydayenglish.data.entity.UserProfile
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
@@ -22,15 +25,14 @@ data class AuthUiState(
 
 class AuthViewModel(
     private val authRepository: AuthRepository,
-    private val syncRepository: SyncRepository
+    private val syncRepository: SyncRepository,
+    private val userProfileRepository: UserProfileRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(
         AuthUiState(currentUserEmail = authRepository.currentUserEmail)
     )
     val uiState = _uiState.asStateFlow()
-
-    val isLoggedIn: Boolean get() = authRepository.isLoggedIn
 
     fun refresh() {
         _uiState.update { it.copy(currentUserEmail = authRepository.currentUserEmail) }
@@ -46,6 +48,24 @@ class AuthViewModel(
 
     fun updatePassword(value: String) {
         _uiState.update { it.copy(password = value, errorMessage = null) }
+    }
+
+    /** Gate 页"Continue without an account"：拿一个匿名 Firebase 账号，补上本地 profile。*/
+    fun continueAsGuest(onSuccess: () -> Unit) {
+        _uiState.update { it.copy(isLoading = true, errorMessage = null) }
+        viewModelScope.launch {
+            authRepository.continueAsGuest()
+                .onSuccess { uid ->
+                    ensureProfileExists(uid)
+                    _uiState.update { it.copy(isLoading = false) }
+                    onSuccess()
+                }
+                .onFailure { e ->
+                    _uiState.update {
+                        it.copy(isLoading = false, errorMessage = e.message ?: "Something went wrong.")
+                    }
+                }
+        }
     }
 
     // onSuccess 由调用方负责导航，ViewModel 不碰 nav
@@ -68,9 +88,13 @@ class AuthViewModel(
             }
             result.onSuccess { uid ->
                 if (state.mode == AuthMode.LOGIN) {
-                    // 登录（不是新注册）才需要拉云端数据合并到本地，新注册账号云端本来就是空的
+                    // 登录一个已存在的正式账号才需要拉云端数据合并到本地；
+                    // REGISTER 要么是账号升级（本地数据已经在了，不用拉），要么是全新账号（云端本来就是空的）
                     runCatching { syncRepository.pullAndMerge(uid) }
                 }
+                // 兜底：不管走哪条路径，确保这个 uid 名下本地有一份 profile
+                // （正常情况下 pullAndMerge 或者升级前的匿名 session 已经有了，这里只是兜底）
+                ensureProfileExists(uid)
                 _uiState.update {
                     it.copy(
                         isLoading = false,
@@ -90,5 +114,18 @@ class AuthViewModel(
     fun logout() {
         authRepository.logout()
         _uiState.update { AuthUiState(currentUserEmail = null) }
+    }
+
+    private suspend fun ensureProfileExists(userId: String) {
+        if (userProfileRepository.getUserProfile(userId) != null) return
+        val shortId = userId.replace("-", "").take(3).uppercase()
+        userProfileRepository.insertUserProfile(
+            UserProfile(
+                userId = userId,
+                userName = "user$shortId",
+                avatarUri = PainterDefaults.defaultAvatarUri,
+                profileBackgroundUri = PainterDefaults.defaultProfileBackgroundUri
+            )
+        )
     }
 }

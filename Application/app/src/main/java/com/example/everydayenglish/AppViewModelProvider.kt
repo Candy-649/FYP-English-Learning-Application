@@ -22,7 +22,6 @@ object AppViewModelProvider {
             SplashViewModel(
                 everydayEnglishApplication().container.exerciseRepository,
                 everydayEnglishApplication().container.userProfileRepository,
-                everydayEnglishApplication().container.appPreferencesRepository,
                 everydayEnglishApplication().container.authRepository,
                 everydayEnglishApplication().container.syncRepository
             )
@@ -88,7 +87,8 @@ object AppViewModelProvider {
         initializer {
             AuthViewModel(
                 everydayEnglishApplication().container.authRepository,
-                everydayEnglishApplication().container.syncRepository
+                everydayEnglishApplication().container.syncRepository,
+                everydayEnglishApplication().container.userProfileRepository
             )
         }
     }
