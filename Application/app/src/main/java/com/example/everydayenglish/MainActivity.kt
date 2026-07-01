@@ -37,7 +37,7 @@ import androidx.core.net.toUri
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.everydayenglish.data.PainterDefaults
-import com.example.everydayenglish.navigation.CustomNavController
+import com.example.everydayenglish.navigation.TreeNavController
 import com.example.everydayenglish.navigation.ScreenContent
 import com.example.everydayenglish.ui.theme.EverydayEnglishTheme
 import com.example.everydayenglish.viewmodel.AuthViewModel
@@ -50,7 +50,7 @@ import com.example.everydayenglish.viewmodel.SettingViewModel
 import com.example.everydayenglish.viewmodel.SplashViewModel
 import com.example.everydayenglish.viewmodel.StatisticViewModel
 
-sealed class Screen(val route: String){
+sealed class  Screen(val route: String){
     object MainScreen: Screen("main")
     object ExerciseScreen: Screen("exercise")
     object StatisticScreen: Screen("statistic")
@@ -106,7 +106,7 @@ fun AppNavigation(){
     }
 
     EverydayEnglishTheme(darkTheme = darkTheme) {
-        val nav = remember { CustomNavController(Screen.SplashScreen.route) }
+        val nav = remember { TreeNavController(Screen.SplashScreen.route) }
 
         val configuration = LocalConfiguration.current
         val isTablet = configuration.smallestScreenWidthDp >= 600
@@ -115,12 +115,14 @@ fun AppNavigation(){
 
         BackHandler(enabled = nav.canGoBack) { nav.popBack() }
 
-        if (useDualPane && nav.previousRoute != null) {
+        val layout = nav.dualPaneLayout
+
+        if (useDualPane && layout.left != null) {
 
             Row(Modifier.fillMaxSize()) {
                 Box(Modifier.weight(1f)) {
                     ScreenContent(
-                        route = nav.currentRoute,
+                        node = layout.left,
                         nav = nav,
                         splashViewModel = splashViewModel,
                         exerciseViewModel = exerciseViewModel,
@@ -137,7 +139,7 @@ fun AppNavigation(){
 
                 Box(Modifier.weight(1f)) {
                     ScreenContent(
-                        route = nav.previousRoute!!,
+                        node = layout.right,
                         nav = nav,
                         splashViewModel = splashViewModel,
                         mainViewModel = mainViewModel,
@@ -159,7 +161,7 @@ fun AppNavigation(){
             ) {
                 Box(modifier = Modifier.fillMaxWidth(0.5f).fillMaxHeight().background(MaterialTheme.colorScheme.surface)) {
                     ScreenContent(
-                        route = nav.currentRoute,
+                        node = nav.current,
                         nav = nav,
                         splashViewModel = splashViewModel,
                         mainViewModel = mainViewModel,
@@ -175,7 +177,7 @@ fun AppNavigation(){
         }
         else {
             AnimatedContent(
-                targetState = nav.currentRoute,
+                targetState = nav.current,
                 transitionSpec = {
                     val enter = slideInHorizontally(
                         initialOffsetX = { -it },
@@ -188,9 +190,9 @@ fun AppNavigation(){
                     enter togetherWith exit
                 },
                 label = "nav_anim"
-            ) { route ->
+            ) { node ->
                 ScreenContent(
-                    route = route,
+                    node = node,
                     nav = nav,
                     splashViewModel = splashViewModel,
                     mainViewModel = mainViewModel,
