@@ -116,8 +116,9 @@ fun AppNavigation(){
         BackHandler(enabled = nav.canGoBack) { nav.popBack() }
 
         val layout = nav.dualPaneLayout
+        val showDual = useDualPane && layout.left !== layout.right
 
-        if (useDualPane && layout.left != null) {
+        if (showDual) {
 
             Row(Modifier.fillMaxSize()) {
                 Box(Modifier.weight(1f)) {
