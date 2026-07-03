@@ -30,6 +30,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -49,12 +50,14 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.example.everydayenglish.data.entity.ExerciseRecord
+import com.example.everydayenglish.viewmodel.HistoryFilter
 import com.example.everydayenglish.viewmodel.HistoryItem
 import com.example.everydayenglish.viewmodel.HistoryUiState
 import com.example.everydayenglish.viewmodel.RedoFeedbackState
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import androidx.compose.material.icons.filled.PlayArrow
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -62,6 +65,8 @@ fun HistoryScreen(
     uiState           : HistoryUiState,
     onBackClick       : () -> Unit,
     onCardClick       : (Int) -> Unit,      // promptId
+    onFilterChange     : (HistoryFilter) -> Unit = {},
+    onPracticeMistakes: () -> Unit = {},
     onRedoClick       : (Int) -> Unit = {}, // promptId，打开重做面板
     onRedoAnswerChange: (String) -> Unit = {},
     onSubmitRedo      : () -> Unit = {},
@@ -80,74 +85,115 @@ fun HistoryScreen(
             )
         }
     ) { innerPadding ->
-        when {
-            uiState.isLoading -> {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(innerPadding),
-                    contentAlignment = Alignment.Center
-                ) {
-                    CircularProgressIndicator()
-                }
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+        ) {
+            // ── 筛选：All / Mistakes / Error Log ────────────────
+            Row(
+                modifier              = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                FilterChip(
+                    selected = uiState.filter == HistoryFilter.ALL,
+                    onClick  = { onFilterChange(HistoryFilter.ALL) },
+                    label    = { Text("All") }
+                )
+                FilterChip(
+                    selected = uiState.filter == HistoryFilter.MISTAKES,
+                    onClick  = { onFilterChange(HistoryFilter.MISTAKES) },
+                    label    = { Text("Mistakes") }
+                )
+                FilterChip(
+                    selected = uiState.filter == HistoryFilter.ERROR_LOG,
+                    onClick  = { onFilterChange(HistoryFilter.ERROR_LOG) },
+                    label    = { Text("Error Log") }
+                )
             }
-
-            uiState.errorMessage != null -> {
-                Box(
+            // ── 错题练习入口：只在 Error Log 且有内容时出现 ──────────
+            if (uiState.filter == HistoryFilter.ERROR_LOG && uiState.displayedItems.isNotEmpty()) {
+                Button(
+                    onClick  = onPracticeMistakes,
                     modifier = Modifier
-                        .fillMaxSize()
-                        .padding(innerPadding),
-                    contentAlignment = Alignment.Center
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 4.dp)
                 ) {
-                    Text(
-                        text  = uiState.errorMessage,
-                        color = MaterialTheme.colorScheme.error
+                    Icon(
+                        imageVector        = Icons.Default.PlayArrow,
+                        contentDescription = null,
+                        modifier           = Modifier.size(18.dp)
                     )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("Practice these mistakes (${uiState.displayedItems.size})")
                 }
             }
 
-            uiState.items.isEmpty() -> {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(innerPadding),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text  = "No exercises yet.\nStart studying to see your history!",
-                        style = MaterialTheme.colorScheme.onSurfaceVariant.let {
-                            MaterialTheme.typography.bodyLarge
-                        },
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+            when {
+                uiState.isLoading -> {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator()
+                    }
                 }
-            }
 
-            else -> {
-                LazyColumn(
-                    modifier            = Modifier
-                        .fillMaxSize()
-                        .padding(innerPadding),
-                    contentPadding      = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    itemsIndexed(
-                        items = uiState.items,
-                        key   = { _, item -> item.promptId }
-                    ) { _, item ->
-                        HistoryCard(
-                            item              = item,
-                            isExpanded        = uiState.expandedPromptId == item.promptId,
-                            isRedoOpen        = uiState.redoPromptId == item.promptId,
-                            redoAnswer        = uiState.redoAnswer,
-                            redoFeedback      = uiState.redoFeedback,
-                            onClick           = { onCardClick(item.promptId) },
-                            onRedoClick       = { onRedoClick(item.promptId) },
-                            onRedoAnswerChange = onRedoAnswerChange,
-                            onSubmitRedo      = onSubmitRedo,
-                            onRetryRedo       = onRetryRedo,
-                            onCloseRedo       = onCloseRedo
+                uiState.errorMessage != null -> {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text  = uiState.errorMessage,
+                            color = MaterialTheme.colorScheme.error
                         )
+                    }
+                }
+
+                uiState.displayedItems.isEmpty() -> {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text  = when (uiState.filter) {
+                                HistoryFilter.MISTAKES  -> "No mistakes here!\nEverything you've tried, you've gotten right."
+                                HistoryFilter.ERROR_LOG -> "Your error log is empty!\nEvery question you've tried was correct on every attempt."
+                                HistoryFilter.ALL       -> "No exercises yet.\nStart studying to see your history!"
+                            },
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+
+                else -> {
+                    LazyColumn(
+                        modifier            = Modifier.fillMaxSize(),
+                        contentPadding      = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        itemsIndexed(
+                            items = uiState.displayedItems,
+                            key   = { _, item -> item.promptId }
+                        ) { _, item ->
+                            HistoryCard(
+                                item              = item,
+                                isExpanded        = uiState.expandedPromptId == item.promptId,
+                                isRedoOpen        = uiState.redoPromptId == item.promptId,
+                                redoAnswer        = uiState.redoAnswer,
+                                redoFeedback      = uiState.redoFeedback,
+                                onClick           = { onCardClick(item.promptId) },
+                                onRedoClick       = { onRedoClick(item.promptId) },
+                                onRedoAnswerChange = onRedoAnswerChange,
+                                onSubmitRedo      = onSubmitRedo,
+                                onRetryRedo       = onRetryRedo,
+                                onCloseRedo       = onCloseRedo
+                            )
+                        }
                     }
                 }
             }
@@ -568,48 +614,12 @@ private fun RecordRow(
             style = MaterialTheme.typography.bodyMedium
         )
 
-        // 语义得分（有的话）
-        /*record.semanticScore?.let { score ->
-            Text(
-                text  = "Similarity: ${"%.0f".format(score * 100)}%",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }*/
-
-        // 语法备注
-        /*record.grammar?.takeIf { it.isNotBlank() }?.let { grammar ->
-            Text(
-                text  = "Grammar: $grammar",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }*/
         record.feedback?.takeIf { it.isNotBlank() }?.let { feedback ->
             MarkdownText(
                 markdown = feedback,
                 modifier = Modifier.fillMaxWidth()
             )
         }
-        // ── debug 区域 ────────────────────────────────────────────
-        /*HorizontalDivider(
-            modifier = Modifier.padding(vertical = 4.dp),
-            color    = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
-        )
-        Text(
-            text  = "recordId=${record.recordId}  referId=${record.referId}  pending=${record.evaluationPending}  isCorrect=${record.isCorrect}",
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.outline,
-            fontFamily = FontFamily.Monospace
-        )
-        record.feedback?.takeIf { it.isNotBlank() }?.let {
-            Text(
-                text  = "feedback: $it",
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.outline,
-                fontFamily = FontFamily.Monospace
-            )
-        }*/
     }
 }
 

@@ -57,6 +57,8 @@ fun SettingScreen(
 
     onDailyGoalConfirm: (Int) -> Unit,
 
+    onMistakePracticeLimitConfirm: (Int) -> Unit,
+
     isLoggedIn: Boolean = false,
     currentUserEmail: String? = null,
     onAccountClick: () -> Unit = {},
@@ -65,6 +67,7 @@ fun SettingScreen(
     var showDarkModeSheet by remember { mutableStateOf(false) }
     var showSentenceSheet    by remember { mutableStateOf(false) }
     var showDailyGoalSheet   by remember { mutableStateOf(false) }
+    var showMistakeLimitSheet by remember { mutableStateOf(false) }
     var pendingSentenceCount by remember {
         mutableStateOf(uiState.recentSentenceCount)
     }
@@ -137,6 +140,32 @@ fun SettingScreen(
             }
         }
     }
+
+    // Mistake Practice Limit Sheet
+    if (showMistakeLimitSheet) {
+        val limitOptions = (5..30 step 5).toList()
+        var pending by remember {
+            mutableStateOf(
+                limitOptions.firstOrNull { it == uiState.mistakePracticeLimit }
+                    ?: limitOptions.first()
+            )
+        }
+        ModalBottomSheet(onDismissRequest = { showMistakeLimitSheet = false }) {
+            PickerSheetContent(
+                title = "Mistake Practice Limit",
+                onConfirm = {
+                    onMistakePracticeLimitConfirm(pending)
+                    showMistakeLimitSheet = false
+                }
+            ) {
+                WheelPicker(
+                    items = limitOptions,
+                    selectedValue = { pending = it }
+                )
+            }
+        }
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -296,6 +325,16 @@ fun SettingScreen(
 
                         onClick = { showDailyGoalSheet = true }
                     )
+
+                    SettingsInfoItem(
+
+                        text = "Mistake practice limit",
+
+                        value =
+                            uiState.mistakePracticeLimit.toString(),
+
+                        onClick = { showMistakeLimitSheet = true }
+                    )
                 }
             }
         }
@@ -348,6 +387,7 @@ fun SettingScreenPreview(){
                 cacheSizeText = "128 MB",
                 notificationEnabled = true,
                 dailyGoal = 15,
+                mistakePracticeLimit = 15,
                 darkModeEnabled = true,
             ),
             onCacheClick = {},
@@ -356,7 +396,8 @@ fun SettingScreenPreview(){
             onDarkModeChange = {},
             onDarkModeOptionChange = {},
             onSentenceCountConfirm = {},
-            onDailyGoalConfirm = {}
+            onDailyGoalConfirm = {},
+            onMistakePracticeLimitConfirm = {}
         )
     }
 }

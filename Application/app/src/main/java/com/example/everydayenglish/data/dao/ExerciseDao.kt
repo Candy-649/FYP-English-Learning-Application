@@ -42,4 +42,15 @@ interface ExerciseDao {
     )
     suspend fun getExercisesByTense(tense: String): List<Exercise>
 
+    // 排除已做过的题目（excludeIds 传空列表时等价于 getExercisesByTense）
+    @Query(
+        """
+        SELECT e.* FROM exercises e
+        INNER JOIN reference_answers r ON e.promptId = r.promptId
+        WHERE r.tense = :tense AND e.promptId NOT IN (:excludeIds)
+        GROUP BY e.promptId
+    """
+    )
+    suspend fun getExercisesByTenseExcluding(tense: String, excludeIds: List<Int>): List<Exercise>
+
 }

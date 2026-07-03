@@ -31,11 +31,12 @@ class SettingViewModel(
                 }.getOrDefault(DarkModeOption.AUTO)
                 val notification = appPreferencesRepository.getNotification()
 
-                // sentenceCount 来自 UserProfile
+                // dailyGoal / sentenceCount / mistakePracticeLimit 都来自 UserProfile，跟账号走
                 val userId       = appPreferencesRepository.getUserId()
                 val profile      = userProfileRepository.getUserProfile(userId)
                 val dailyGoal    = profile?.dailyGoal ?: 10
                 val sentenceCount = profile?.recentSentenceCount ?: 20
+                val mistakePracticeLimit = profile?.mistakePracticeLimit ?: 15
 
                 val cacheText = (appPreferencesRepository
                         as? OfflineAppPreferencesRepository)
@@ -43,12 +44,13 @@ class SettingViewModel(
 
                 _uiState.update {
                     it.copy(
-                        dailyGoal           = dailyGoal,
-                        darkModeEnabled     = darkMode,
-                        darkModeOption = darkModeOpt,
-                        notificationEnabled = notification,
-                        recentSentenceCount = sentenceCount,
-                        cacheSizeText       = cacheText
+                        dailyGoal            = dailyGoal,
+                        darkModeEnabled      = darkMode,
+                        darkModeOption       = darkModeOpt,
+                        notificationEnabled  = notification,
+                        recentSentenceCount  = sentenceCount,
+                        mistakePracticeLimit = mistakePracticeLimit,
+                        cacheSizeText        = cacheText
                     )
                 }
             } catch (_: Exception) { }
@@ -60,6 +62,14 @@ class SettingViewModel(
         viewModelScope.launch {
             val userId = appPreferencesRepository.getUserId()
             userProfileRepository.updateDailyGoal(goal, userId)
+        }
+    }
+
+    fun updateMistakePracticeLimit(limit: Int) {
+        _uiState.update { it.copy(mistakePracticeLimit = limit) }
+        viewModelScope.launch {
+            val userId = appPreferencesRepository.getUserId()
+            userProfileRepository.updateMistakePracticeLimit(limit, userId)
         }
     }
 
@@ -113,6 +123,7 @@ data class SettingUiState(
     val cacheSizeText: String = "0 MB",
     val notificationEnabled: Boolean = true,
     val dailyGoal: Int = 10,
+    val mistakePracticeLimit: Int = 15,
     val darkModeEnabled: Boolean = false,
     val darkModeOption: DarkModeOption = DarkModeOption.AUTO,
 )

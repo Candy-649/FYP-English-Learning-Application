@@ -36,4 +36,7 @@ class OfflineRecordRepository(
 
     override suspend fun getAllByUser(userId: String): List<ExerciseRecord> =
         exerciseRecordDao.getAllByUser(userId)
+
+    override suspend fun getAttemptedPromptIds(userId: String): List<Int> =
+        exerciseRecordDao.getAttemptedPromptIds(userId)
 }

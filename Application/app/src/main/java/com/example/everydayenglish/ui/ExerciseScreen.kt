@@ -80,6 +80,7 @@ import com.example.everydayenglish.viewmodel.ArmDebugInfo
 import com.example.everydayenglish.viewmodel.ExerciseUiState
 import com.example.everydayenglish.viewmodel.FeedbackState
 import com.example.everydayenglish.viewmodel.SelectionStepLog
+import com.example.everydayenglish.viewmodel.SessionMode
 import io.noties.markwon.Markwon
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -101,36 +102,45 @@ fun ExerciseScreen(
         topBar = {
             TopAppBar(
                 title = {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(
-                            dimensionResource(R.dimen.padding_small),
-                            Alignment.CenterHorizontally
-                        ),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        // Left label: questions answered this session
-                        Text(
-                            text = uiState.todayProgress.toString(),
-                            style = MaterialTheme.typography.labelMedium
-                        )
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        if (uiState.sessionMode == SessionMode.MISTAKE_PRACTICE) {
+                            Text(
+                                text  = "Mistake Practice",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(
+                                dimensionResource(R.dimen.padding_small),
+                                Alignment.CenterHorizontally
+                            ),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            // Left label: questions answered this session
+                            Text(
+                                text = uiState.todayProgress.toString(),
+                                style = MaterialTheme.typography.labelMedium
+                            )
 
-                        // Progress bar: fraction of daily goal completed
-                        LinearProgressIndicator(
-                            progress = {
-                                if (uiState.dailyGoal == 0) 0f
-                                else uiState.todayProgress.toFloat() / uiState.dailyGoal.toFloat()
-                            },
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(dimensionResource(R.dimen.padding_medium))
-                        )
+                            // Progress bar: fraction of daily goal (or, in practice mode, this batch) completed
+                            LinearProgressIndicator(
+                                progress = {
+                                    if (uiState.dailyGoal == 0) 0f
+                                    else uiState.todayProgress.toFloat() / uiState.dailyGoal.toFloat()
+                                },
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(dimensionResource(R.dimen.padding_medium))
+                            )
 
-                        // Right label: daily goal
-                        Text(
-                            text = uiState.dailyGoal.toString(),
-                            style = MaterialTheme.typography.labelMedium
-                        )
+                            // Right label: daily goal (or, in practice mode, this batch's size)
+                            Text(
+                                text = uiState.dailyGoal.toString(),
+                                style = MaterialTheme.typography.labelMedium
+                            )
+                        }
                     }
                 },
                 navigationIcon = {
@@ -201,6 +211,7 @@ fun ExerciseScreen(
                         totalAnswered = uiState.totalAnswered,
                         correctCount  = uiState.correctCount,
                         dailyGoal     = uiState.dailyGoal,
+                        sessionMode   = uiState.sessionMode,
                         onReturn      = onReturn,
                         onRestart     = onRestartSession
                     )
@@ -664,9 +675,12 @@ private fun SessionCompleteContent(
     totalAnswered: Int,
     correctCount: Int,
     dailyGoal: Int,
+    sessionMode: SessionMode,
     onReturn: () -> Unit,
     onRestart: () -> Unit
 ) {
+    val isPractice = sessionMode == SessionMode.MISTAKE_PRACTICE
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -685,7 +699,7 @@ private fun SessionCompleteContent(
         Spacer(modifier = Modifier.height(24.dp))
 
         Text(
-            text       = "Session Complete!",
+            text       = if (isPractice) "Practice Complete!" else "Session Complete!",
             style      = MaterialTheme.typography.headlineMedium,
             fontWeight = FontWeight.Bold,
             textAlign  = TextAlign.Center
@@ -694,7 +708,10 @@ private fun SessionCompleteContent(
         Spacer(modifier = Modifier.height(8.dp))
 
         Text(
-            text      = "You finished all $dailyGoal exercises for today.",
+            text      = if (isPractice)
+                "You reviewed $dailyGoal mistake${if (dailyGoal != 1) "s" else ""}."
+            else
+                "You finished all $dailyGoal exercises for today.",
             style     = MaterialTheme.typography.bodyLarge,
             textAlign = TextAlign.Center,
             color     = MaterialTheme.colorScheme.onSurfaceVariant
@@ -760,7 +777,7 @@ private fun SessionCompleteContent(
             onClick  = onRestart,
             modifier = Modifier.fillMaxWidth()
         ) {
-            Text("Practice More")
+            Text(if (isPractice) "Practice Again" else "Practice More")
         }
     }
 }
@@ -844,6 +861,3 @@ fun ExerciseScreenDonePreview() {
         )
     }
 }
-
-
-

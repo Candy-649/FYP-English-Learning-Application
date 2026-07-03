@@ -79,6 +79,14 @@ val MIGRATION_3_4 = object : Migration(3, 4) {
     }
 }
 
+val MIGRATION_4_5 = object : Migration(4, 5) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            "ALTER TABLE user_profiles ADD COLUMN mistakePracticeLimit INTEGER NOT NULL DEFAULT 15"
+        )
+    }
+}
+
 @Database(
     entities = [
         Exercise::class,
@@ -88,7 +96,7 @@ val MIGRATION_3_4 = object : Migration(3, 4) {
         QuestionAttempt::class,
         DailyCompletion::class
     ],
-    version = 4,
+    version = 5,
     exportSchema = false
 )
 @TypeConverters(UriTypeConverter::class)

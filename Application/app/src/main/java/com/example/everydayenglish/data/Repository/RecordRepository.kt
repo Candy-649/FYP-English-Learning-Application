@@ -18,4 +18,5 @@ interface RecordRepository {
         updatedAt: Long = System.currentTimeMillis()
     )
     suspend fun getAllByUser(userId: String): List<ExerciseRecord>
+    suspend fun getAttemptedPromptIds(userId: String): List<Int>
 }

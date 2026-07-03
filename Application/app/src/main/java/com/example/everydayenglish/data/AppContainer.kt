@@ -59,7 +59,7 @@ class AppDataContainer(context: Context) : AppContainer {
         AppDatabase::class.java,
         "everyday_english_db"
     )
-        .addMigrations(MIGRATION_2_3, MIGRATION_3_4)
+        .addMigrations(MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
         .fallbackToDestructiveMigration(true) // fallback: if a future version forgets a migration, this avoids a hard crash
         .build()
 

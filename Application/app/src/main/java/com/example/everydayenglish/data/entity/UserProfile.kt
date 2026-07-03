@@ -22,6 +22,8 @@ data class UserProfile(
     val todayCorrectCount: Int = 0,
     val lastStudiedDate: Long = 0L,
     val recentSentenceCount: Int = 20,
+    @ColumnInfo(defaultValue = "15")
+    val mistakePracticeLimit: Int = 15,
     @ColumnInfo(defaultValue = "0")
     val updatedAt: Long = System.currentTimeMillis()   // 第三轮做 last-write-wins 合并用
 )

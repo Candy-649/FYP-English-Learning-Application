@@ -48,6 +48,9 @@ class OfflineExerciseRepository(
     override suspend fun getExercisesByCategory(category: TenseCategory): List<Exercise> =
         exerciseDao.getExercisesByTense(category.displayName)
 
+    override suspend fun getExercisesByCategoryExcluding(category: TenseCategory, excludeIds: List<Int>): List<Exercise> =
+        exerciseDao.getExercisesByTenseExcluding(category.displayName, excludeIds)
+
     private fun loadExercises(): List<ExerciseJson> {
         val jsonString = context.assets
             .open("questions.json")

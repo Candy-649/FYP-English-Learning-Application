@@ -14,4 +14,5 @@ interface ExerciseRepository {
     suspend fun getExerciseById(id: Int): Exercise
     suspend fun importExercises()
     suspend fun getExercisesByCategory(category: TenseCategory): List<Exercise>
+    suspend fun getExercisesByCategoryExcluding(category: TenseCategory, excludeIds: List<Int>): List<Exercise>
 }

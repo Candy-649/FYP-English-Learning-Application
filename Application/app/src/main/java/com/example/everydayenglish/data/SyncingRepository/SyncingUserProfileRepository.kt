@@ -76,6 +76,11 @@ class SyncingUserProfileRepository(
         pushIfLoggedIn(userId)
     }
 
+    override suspend fun updateMistakePracticeLimit(limit: Int, userId: String) {
+        offline.updateMistakePracticeLimit(limit, userId)
+        pushIfLoggedIn(userId)
+    }
+
     override fun observeUserProfile(userId: String): Flow<UserProfile?> =
         offline.observeUserProfile(userId)
 }

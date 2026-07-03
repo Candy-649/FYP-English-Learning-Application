@@ -115,7 +115,14 @@ fun ScreenContent(
                 onRetry          = { exerciseViewModel.dismissFeedback() },
                 onGiveUp         = { exerciseViewModel.finishCurrentQuestion(gaveUp = true) },
                 onReturn         = { nav.popBackTo(Screen.MainScreen.route, from = node) },
-                onRestartSession = { exerciseViewModel.restartSession() },
+                onRestartSession = {
+                    // 错题重练模式下「再来一轮」应该继续从错题池抽题，而不是切回每日模式
+                    if (exerciseViewModel.uiState.value.sessionMode == SessionMode.MISTAKE_PRACTICE) {
+                        exerciseViewModel.startMistakePractice()
+                    } else {
+                        exerciseViewModel.restartSession()
+                    }
+                },
                 onToggleDebug    = { exerciseViewModel.toggleDebugPanel() }
             )
         }
@@ -134,6 +141,11 @@ fun ScreenContent(
                 uiState            = historyViewModel.uiState.collectAsState().value,
                 onBackClick        = { nav.popBackTo(Screen.MainScreen.route, from = node) },
                 onCardClick        = { historyViewModel.toggleExpand(it) },
+                onFilterChange     = { historyViewModel.setFilter(it) },
+                onPracticeMistakes = {
+                    exerciseViewModel.startMistakePractice()
+                    nav.navigate(Screen.ExerciseScreen.route, from = node)
+                },
                 onRedoClick        = { historyViewModel.openRedo(it) },
                 onRedoAnswerChange = { historyViewModel.updateRedoAnswer(it) },
                 onSubmitRedo       = { historyViewModel.submitRedo() },
@@ -160,7 +172,8 @@ fun ScreenContent(
                 onLogoutClick           = {
                     authViewModel.logout()
                     nav.reset(Screen.AuthScreen.route)
-                }
+                },
+                onMistakePracticeLimitConfirm = { settingViewModel.updateMistakePracticeLimit(it)},
             )
         }
 

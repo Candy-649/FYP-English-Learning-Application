@@ -32,6 +32,17 @@ data class HistoryItem(
     /** 一次都没做对过 = 放弃 / 卡住的题，History 里可以重做 */
     val canRedo: Boolean
         get() = accuracyRate == 0.0
+
+    /** 只要有过至少一次答错（正确率不是 100%），就算进错题集；哪怕后来做对了也算 */
+    val hasError: Boolean
+        get() = accuracyRate != null && accuracyRate!! < 1.0
+}
+
+/** History 列表筛选模式 */
+enum class HistoryFilter {
+    ALL,
+    MISTAKES,   // 从没做对过（canRedo == true）
+    ERROR_LOG   // 只要错过一次就算，即正确率不是 100%（hasError == true）
 }
 
 /** 重做一题时，提交答案后的评估反馈状态。结构跟 ExerciseViewModel.FeedbackState 类似，但只服务于单题重做。 */
@@ -45,6 +56,7 @@ data class RedoFeedbackState(
 
 data class HistoryUiState(
     val items           : List<HistoryItem> = emptyList(),
+    val filter          : HistoryFilter     = HistoryFilter.ALL,
     val expandedPromptId: Int?              = null,
     val isLoading       : Boolean           = true,
     val errorMessage    : String?           = null,
@@ -53,7 +65,15 @@ data class HistoryUiState(
     val redoPromptId    : Int?              = null,  // 当前打开重做面板的题，null = 没有
     val redoAnswer      : String            = "",
     val redoFeedback    : RedoFeedbackState? = null
-)
+) {
+    /** 根据当前筛选模式展示的列表 */
+    val displayedItems: List<HistoryItem>
+        get() = when (filter) {
+            HistoryFilter.ALL       -> items
+            HistoryFilter.MISTAKES  -> items.filter { it.canRedo }
+            HistoryFilter.ERROR_LOG -> items.filter { it.hasError }
+        }
+}
 
 class HistoryViewModel(
     private val recordRepository  : RecordRepository,
@@ -73,6 +93,10 @@ class HistoryViewModel(
     init { load() }
 
     fun refresh() { load() }
+
+    fun setFilter(filter: HistoryFilter) {
+        _uiState.update { it.copy(filter = filter) }
+    }
 
     fun toggleExpand(promptId: Int) {
         _uiState.update { state ->

@@ -19,6 +19,7 @@ fun UserProfile.toFirestoreMap(): Map<String, Any?> = mapOf(
     "todayCorrectCount" to todayCorrectCount,
     "lastStudiedDate" to lastStudiedDate,
     "recentSentenceCount" to recentSentenceCount,
+    "mistakePracticeLimit" to mistakePracticeLimit,
     "updatedAt" to updatedAt
 )
 
@@ -37,6 +38,7 @@ fun Map<String, Any?>.toUserProfile(): UserProfile? = runCatching {
         todayCorrectCount = (this["todayCorrectCount"] as? Long)?.toInt() ?: 0,
         lastStudiedDate = this["lastStudiedDate"] as? Long ?: 0L,
         recentSentenceCount = (this["recentSentenceCount"] as? Long)?.toInt() ?: 20,
+        mistakePracticeLimit = (this["mistakePracticeLimit"] as? Long)?.toInt() ?: 15,
         updatedAt = this["updatedAt"] as? Long ?: 0L
     )
 }.getOrNull()

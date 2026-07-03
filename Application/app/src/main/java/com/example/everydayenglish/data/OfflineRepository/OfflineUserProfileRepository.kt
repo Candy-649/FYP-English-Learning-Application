@@ -51,6 +51,8 @@ class OfflineUserProfileRepository(
         userProfileDao.updateSentenceCount(count, userId, System.currentTimeMillis())
     override suspend fun updateDailyGoal(goal: Int, userId: String) =
         userProfileDao.updateDailyGoal(goal, userId, System.currentTimeMillis())
+    override suspend fun updateMistakePracticeLimit(limit: Int, userId: String) =
+        userProfileDao.updateMistakePracticeLimit(limit, userId, System.currentTimeMillis())
     override fun observeUserProfile(userId: String): Flow<UserProfile?> =
         userProfileDao.observeUserProfile(userId)
 }

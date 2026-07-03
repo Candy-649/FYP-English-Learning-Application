@@ -45,4 +45,8 @@ interface ExerciseRecordDao {
 
     @Query("SELECT * FROM exercise_records WHERE userId = :userId ORDER BY timestamp DESC")
     suspend fun getAllByUser(userId: String): List<ExerciseRecord>
+
+    // 该用户做过(不论对错)的所有题目 promptId，用于 Exercise 抽题时去重
+    @Query("SELECT DISTINCT promptId FROM exercise_records WHERE userId = :userId")
+    suspend fun getAttemptedPromptIds(userId: String): List<Int>
 }

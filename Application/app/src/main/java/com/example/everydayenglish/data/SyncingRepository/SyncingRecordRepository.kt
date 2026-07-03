@@ -55,4 +55,7 @@ class SyncingRecordRepository(
 
     override suspend fun getAllByUser(userId: String): List<ExerciseRecord> =
         offline.getAllByUser(userId)
+
+    override suspend fun getAttemptedPromptIds(userId: String): List<Int> =
+        offline.getAttemptedPromptIds(userId)
 }

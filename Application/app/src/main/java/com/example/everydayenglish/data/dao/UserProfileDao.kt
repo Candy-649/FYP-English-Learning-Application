@@ -37,6 +37,8 @@ interface UserProfileDao {
     suspend fun updateSentenceCount(count: Int, userId: String, updatedAt: Long)
     @Query("UPDATE user_profiles SET dailyGoal = :goal, updatedAt = :updatedAt WHERE userId = :userId")
     suspend fun updateDailyGoal(goal: Int, userId: String, updatedAt: Long)
+    @Query("UPDATE user_profiles SET mistakePracticeLimit = :limit, updatedAt = :updatedAt WHERE userId = :userId")
+    suspend fun updateMistakePracticeLimit(limit: Int, userId: String, updatedAt: Long)
     @Query("SELECT * FROM user_profiles WHERE userId = :userId")
     fun observeUserProfile(userId: String): Flow<UserProfile?>
 }

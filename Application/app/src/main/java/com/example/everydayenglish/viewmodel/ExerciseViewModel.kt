@@ -45,6 +45,12 @@ data class SelectionStepLog(
     val armDetails: List<ArmDebugInfo>
 )
 
+/** 练习会话的模式：DAILY 走 bandit + 计入每日目标；MISTAKE_PRACTICE 只从错题池抽题，不影响每日目标完成状态 */
+enum class SessionMode {
+    DAILY,
+    MISTAKE_PRACTICE
+}
+
 class ExerciseViewModel(
     private val exerciseRepository: ExerciseRepository,
     private val banditRepository: BanditRepository,
@@ -96,6 +102,9 @@ class ExerciseViewModel(
         val batch = mutableListOf<ExerciseWithReferenceAnswers>()
         val steps = mutableListOf<SelectionStepLog>()
 
+        // 该用户做过的所有题（不论对错）；本次 batch 里新抽到的题也会加进来，避免同一批重复
+        val attemptedIds = recordRepository.getAttemptedPromptIds(userId).toMutableSet()
+
         repeat(dailyGoal) {
             val armStatesBefore = banditRepository.getStats()
             val totalPulls = banditRepository.getTotalPulls()
@@ -126,10 +135,15 @@ class ExerciseViewModel(
                     armDetails = armDetails
                 )
             )
-            val exercise = exerciseRepository
-                .getExercisesByCategory(category)
-                .randomOrNull()
+
+            // 先排除已做过的题；该类别题库耗尽时放开限制，允许在该类别内重复
+            var pool = exerciseRepository.getExercisesByCategoryExcluding(category, attemptedIds.toList())
+            if (pool.isEmpty()) {
+                pool = exerciseRepository.getExercisesByCategory(category)
+            }
+            val exercise = pool.randomOrNull()
             if (exercise != null) {
+                attemptedIds.add(exercise.promptId)
                 val withAnswers =
                     exerciseRepository.getExercisesWithReferenceAnswersById(exercise.promptId)
                 batch.add(withAnswers)
@@ -157,10 +171,71 @@ class ExerciseViewModel(
                 isLoading        = false,
                 errorMessage     = null,
                 currentExercise  = batch.first(),
-                selectionSteps = steps
+                selectionSteps   = steps,
+                sessionMode      = SessionMode.DAILY
             )
         }
         refreshArmStats()
+    }
+
+    fun startMistakePractice() {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoading = true, errorMessage = null) }
+            try {
+                fetchMistakePracticeBatch()
+            } catch (e: Exception) {
+                _uiState.update {
+                    it.copy(isLoading = false, errorMessage = e.message ?: "Unknown error")
+                }
+            }
+        }
+    }
+
+    private suspend fun fetchMistakePracticeBatch() {
+        val allRecords = recordRepository.getAllByUser(userId)
+        val grouped = allRecords.groupBy { it.promptId }
+
+        // 跟 History 的 Error Log 判定完全一致：评估完成的记录里，只要正确率不是 100% 就算错题
+        val mistakePromptIds = grouped.mapNotNull { (promptId, records) ->
+            val evaluated = records.filter { !it.evaluationPending }
+            if (evaluated.isEmpty()) return@mapNotNull null
+            val accuracyRate = evaluated.count { it.isCorrect }.toDouble() / evaluated.size
+            if (accuracyRate < 1.0) promptId else null
+        }.shuffled()
+
+        // 按用户在 Settings 里设置的上限截取，取不到 profile 时兜底 15
+        val limit = userProfileRepository.getUserProfile(userId)?.mistakePracticeLimit ?: 15
+        val cappedIds = mistakePromptIds.take(limit)
+
+        val batch = cappedIds.map { promptId ->
+            exerciseRepository.getExercisesWithReferenceAnswersById(promptId)
+        }
+
+        if (batch.isEmpty()) {
+            _uiState.update {
+                it.copy(isLoading = false, errorMessage = "No mistakes to practice right now — nice work!")
+            }
+            return
+        }
+
+        _uiState.update {
+            it.copy(
+                exerciseQueue    = batch,
+                currentIndex     = 0,
+                dailyGoal        = batch.size,   // 仅用于进度条分母，跟每日学习目标无关
+                todayProgress    = 0,             // 本次练习内的计数，不代表今天的总进度
+                totalAnswered    = 0,
+                correctCount     = 0,
+                feedbackState    = null,
+                userAnswer       = "",
+                isSessionDone    = false,
+                isLoading        = false,
+                errorMessage     = null,
+                currentExercise  = batch.first(),
+                selectionSteps   = emptyList(),
+                sessionMode      = SessionMode.MISTAKE_PRACTICE
+            )
+        }
     }
 
 
@@ -302,12 +377,13 @@ class ExerciseViewModel(
             val exercise = state.currentExercise ?: return@launch
             val tense    = feedback.matchedReferenceAnswer?.tense ?: "Unknown"
             val now      = System.currentTimeMillis()
+            val isDaily  = state.sessionMode == SessionMode.DAILY
 
             // 只有已拿到评估结果才更新 Bandit / sentencesCompleted / todayProgress / todayCorrectCount
             val solved = !gaveUp && feedback.isCorrect == true && !feedback.evaluationOffline
             if (!feedback.evaluationOffline && feedback.isCorrect != null) {
                 if (solved) {
-                    // 答对了该做的事，统一走共用函数（History 重做放弃的题也走同一个函数）
+                    // 答对了该做的事，统一走共用函数（History 重做放弃的题、错题重练都走同一个函数）
                     correctAnswerRewardApplier.apply(
                         promptId   = exercise.exercise.promptId,
                         userId     = userId,
@@ -336,19 +412,27 @@ class ExerciseViewModel(
             val newProgress = if (progressCounts) state.todayProgress + 1 else state.todayProgress
             val newAnswered = state.totalAnswered + 1
             val newCorrect  = if (solved) state.correctCount + 1 else state.correctCount
-            // solved 的情况，todayProgress 已经在 correctAnswerRewardApplier 里持久化过了；
-            // 这里只处理「答错/放弃但进度仍要推进」或「offline 评估」这两种 applier 没覆盖的情况，
-            // 避免对 todayProgress 写两次。
-            if (progressCounts && !solved) {
+
+            // solved 的情况，todayProgress 已经在 correctAnswerRewardApplier 里持久化过了（两种模式都会发生）；
+            // 这里只处理「答错/放弃但进度仍要推进」或「offline 评估」这两种 applier 没覆盖的情况。
+            // 仅 DAILY 模式才写回：这条路径用的是内存计数器 +1，错题重练的内存计数器从 0 起步，
+            // 不能拿去覆盖数据库里真实的当天进度。
+            if (isDaily && progressCounts && !solved) {
                 userProfileRepository.updateTodayProgress(newProgress, System.currentTimeMillis(), userId)
             }
 
-            if (newAnswered >= state.dailyGoal) {
-                userProfileRepository.incrementStudyDays(userId)
-                val today = java.time.LocalDate.now().toEpochDay().toInt()
-                dailyCompletionRepository.insert(
-                    DailyCompletion(userId = userId, dateEpochDay = today, completed = true)
-                )
+            // 用实际题目队列长度判断这批是否做完，不再用 dailyGoal——
+            // 错题重练的题目数量跟每日目标无关，两者不能再共用同一个字段做终止条件。
+            val isLastQuestion = newAnswered >= state.exerciseQueue.size
+
+            if (isLastQuestion) {
+                if (isDaily) {
+                    userProfileRepository.incrementStudyDays(userId)
+                    val today = java.time.LocalDate.now().toEpochDay().toInt()
+                    dailyCompletionRepository.insert(
+                        DailyCompletion(userId = userId, dateEpochDay = today, completed = true)
+                    )
+                }
                 _uiState.update {
                     it.copy(
                         todayProgress   = newProgress,
@@ -383,7 +467,11 @@ class ExerciseViewModel(
 
 
             if (nextIndex >= state.exerciseQueue.size) {
-                userProfileRepository.incrementStudyDays(userId)
+                // 正常情况下 finishCurrentQuestion 已经先一步把 isLastQuestion 处理掉了，
+                // 这里只是兜底；DAILY 模式才增加学习天数统计。
+                if (state.sessionMode == SessionMode.DAILY) {
+                    userProfileRepository.incrementStudyDays(userId)
+                }
 
                 _uiState.update {
                     it.copy(
@@ -479,7 +567,8 @@ data class ExerciseUiState(
     val errorMessage: String? = null,
     val selectionSteps: List<SelectionStepLog> = emptyList(),
     val showDebugPanel: Boolean = false,
-    val currentArmStats: List<ArmDebugInfo> = emptyList()
+    val currentArmStats: List<ArmDebugInfo> = emptyList(),
+    val sessionMode: SessionMode = SessionMode.DAILY
 )
 
 data class FeedbackState(
