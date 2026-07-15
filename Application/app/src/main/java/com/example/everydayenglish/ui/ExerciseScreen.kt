@@ -246,20 +246,22 @@ fun ExerciseScreen(
 
     uiState.feedbackState?.let { feedback ->
         FeedbackDialog(
-            feedback = feedback,
-            onNext   = onNext,
-            onRetry  = onRetry,
-            onGiveUp = onGiveUp
+            feedback   = feedback,
+            userAnswer = uiState.userAnswer,
+            onNext     = onNext,
+            onRetry    = onRetry,
+            onGiveUp   = onGiveUp
         )
     }
 }
 
 @Composable
 private fun FeedbackDialog(
-    feedback: FeedbackState,
-    onNext  : () -> Unit,
-    onRetry : () -> Unit,
-    onGiveUp: () -> Unit
+    feedback  : FeedbackState,
+    userAnswer: String,
+    onNext    : () -> Unit,
+    onRetry   : () -> Unit,
+    onGiveUp  : () -> Unit
 ) {
     AlertDialog(
         onDismissRequest = {},
@@ -291,7 +293,7 @@ private fun FeedbackDialog(
                             color = MaterialTheme.colorScheme.outline
                         )
                         Text(
-                            text = "grammar: ${feedback.grammar}",
+                            text  = "grammar: ${feedback.grammar}",
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.outline
                         )
@@ -329,11 +331,16 @@ private fun FeedbackDialog(
                         }
                     }
                     else -> {
-                        feedback.feedback?.let {
-                            MarkdownText(
-                                markdown = it,
-                                modifier = Modifier.fillMaxWidth()
+                        // Encouraging sentence
+                        feedback.encouragement?.let {
+                            Text(
+                                text  = it,
+                                style = MaterialTheme.typography.bodyMedium
                             )
+                        }
+                        // One card per identified error
+                        feedback.errors.forEach { error ->
+                            GrammarErrorCard(userAnswer = userAnswer, error = error)
                         }
                     }
                 }
@@ -362,6 +369,11 @@ private fun FeedbackDialog(
     )
 }
 
+/**
+ * Renders a markdown string using Markwon.
+ * Still used by HistoryScreen's RecordRow for legacy feedback records stored
+ * in plain-text / markdown format prior to the structured-error migration.
+ */
 @Composable
 fun MarkdownText(markdown: String, modifier: Modifier = Modifier) {
     val context = LocalContext.current
@@ -372,6 +384,7 @@ fun MarkdownText(markdown: String, modifier: Modifier = Modifier) {
         update   = { markwon.setMarkdown(it, markdown) }
     )
 }
+
 @Composable
 private fun DebugPanel(
     steps: List<SelectionStepLog>,
@@ -404,64 +417,33 @@ private fun DebugPanel(
                         color = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
                     )
-                }
-                item {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 12.dp)
-                    ) {
-                        Text("Category", style = MaterialTheme.typography.labelSmall, modifier = Modifier.weight(2.5f), fontWeight = FontWeight.Bold)
-                        Text("μ",        style = MaterialTheme.typography.labelSmall, modifier = Modifier.weight(1f),   fontWeight = FontWeight.Bold, textAlign = TextAlign.End)
-                        Text("n",        style = MaterialTheme.typography.labelSmall, modifier = Modifier.weight(0.7f), fontWeight = FontWeight.Bold, textAlign = TextAlign.End)
-                        Text("UCB",      style = MaterialTheme.typography.labelSmall, modifier = Modifier.weight(1.2f), fontWeight = FontWeight.Bold, textAlign = TextAlign.End)
-                    }
-                }
-                if (currentArmStats.isEmpty()) {
-                    item {
-                        Text(
-                            text = "No data yet",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(12.dp)
-                        )
-                    }
-                } else {
-                    items(currentArmStats) { arm ->
+                    currentArmStats.forEach { arm ->
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(horizontal = 12.dp, vertical = 2.dp)
                         ) {
-                            Text(arm.category.displayName, style = MaterialTheme.typography.labelSmall, modifier = Modifier.weight(2.5f), maxLines = 1)
-                            Text("%.2f".format(arm.mu),    style = MaterialTheme.typography.labelSmall, modifier = Modifier.weight(1f),   textAlign = TextAlign.End)
-                            Text(arm.n.toString(),         style = MaterialTheme.typography.labelSmall, modifier = Modifier.weight(0.7f), textAlign = TextAlign.End)
                             Text(
-                                text = if (arm.ucbScore == Double.MAX_VALUE) "∞" else "%.2f".format(arm.ucbScore),
+                                text = arm.category.displayName,
                                 style = MaterialTheme.typography.labelSmall,
-                                modifier = Modifier.weight(1.2f),
+                                modifier = Modifier.weight(2.5f)
+                            )
+                            Text(
+                                text = "μ=%.2f n=%d".format(arm.mu, arm.n),
+                                style = MaterialTheme.typography.labelSmall,
+                                modifier = Modifier.weight(2f),
                                 textAlign = TextAlign.End
                             )
                         }
                     }
                 }
 
-                item {
-                    HorizontalDivider(modifier = Modifier.padding(vertical = 6.dp))
-                    Text(
-                        text = "Selection History",
-                        style = MaterialTheme.typography.labelMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
-                    )
-                }
                 if (steps.isEmpty()) {
                     item {
                         Text(
-                            text = "No steps yet",
+                            text = "No selection steps recorded.",
                             style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            color = MaterialTheme.colorScheme.outline,
                             modifier = Modifier.padding(12.dp)
                         )
                     }
@@ -817,7 +799,7 @@ fun ExerciseScreenPreview() {
         feedbackState   = FeedbackState(
             isCorrect              = true,
             matchedReferenceAnswer = mockExercise.answers[1],
-            feedback               = "Your answer correctly uses the past tense.",
+            encouragement          = "Great job using the past tense correctly!",
             semanticScore          = 0.87,
             grammar                = "Grammar looks good."
         )
@@ -828,10 +810,10 @@ fun ExerciseScreenPreview() {
             uiState          = mockState,
             onAnswerChange   = {},
             onSubmit         = {},
-            onNext   = {},
+            onNext           = {},
             onReturn         = {},
             onRestartSession = {},
-            onToggleDebug = {},
+            onToggleDebug    = {},
             onRetry          = {},
             onGiveUp         = {}
         )
@@ -842,7 +824,7 @@ fun ExerciseScreenPreview() {
 @Composable
 fun ExerciseScreenDonePreview() {
     val mockState = ExerciseUiState(
-        dailyGoal    = 10,
+        dailyGoal     = 10,
         totalAnswered = 10,
         correctCount  = 8,
         isSessionDone = true
@@ -852,10 +834,10 @@ fun ExerciseScreenDonePreview() {
             uiState          = mockState,
             onAnswerChange   = {},
             onSubmit         = {},
-            onNext   = {},
+            onNext           = {},
             onReturn         = {},
             onRestartSession = {},
-            onToggleDebug = {},
+            onToggleDebug    = {},
             onRetry          = {},
             onGiveUp         = {}
         )

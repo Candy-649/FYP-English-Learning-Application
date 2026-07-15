@@ -58,6 +58,8 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import androidx.compose.material.icons.filled.PlayArrow
+import com.example.everydayenglish.data.entity.EvaluationResult
+import org.json.JSONObject
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -327,12 +329,12 @@ private fun HistoryCard(
                     if (isRedoOpen) {
                         HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp))
                         RedoPanel(
-                            answer       = redoAnswer,
-                            feedback     = redoFeedback,
+                            answer         = redoAnswer,
+                            feedback       = redoFeedback,
                             onAnswerChange = onRedoAnswerChange,
-                            onSubmit     = onSubmitRedo,
-                            onRetry      = onRetryRedo,
-                            onClose      = onCloseRedo
+                            onSubmit       = onSubmitRedo,
+                            onRetry        = onRetryRedo,
+                            onClose        = onCloseRedo
                         )
                     }
                 }
@@ -429,8 +431,12 @@ private fun RedoPanel(
                         fontWeight = FontWeight.Bold
                     )
                 }
-                feedback.feedback?.takeIf { it.isNotBlank() }?.let {
-                    MarkdownText(markdown = it, modifier = Modifier.fillMaxWidth())
+                feedback.encouragement?.takeIf { it.isNotBlank() }?.let {
+                    Text(
+                        text  = it,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
                 Row(
                     modifier              = Modifier.fillMaxWidth(),
@@ -457,8 +463,16 @@ private fun RedoPanel(
                         color = MaterialTheme.colorScheme.error
                     )
                 }
-                feedback.feedback?.takeIf { it.isNotBlank() }?.let {
-                    MarkdownText(markdown = it, modifier = Modifier.fillMaxWidth())
+                feedback.encouragement?.takeIf { it.isNotBlank() }?.let {
+                    Text(
+                        text  = it,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                // Structured error cards
+                feedback.errors.forEach { error ->
+                    GrammarErrorCard(userAnswer = answer, error = error)
                 }
                 Row(
                     modifier              = Modifier.fillMaxWidth(),
@@ -614,11 +628,22 @@ private fun RecordRow(
             style = MaterialTheme.typography.bodyMedium
         )
 
-        record.feedback?.takeIf { it.isNotBlank() }?.let { feedback ->
-            MarkdownText(
-                markdown = feedback,
-                modifier = Modifier.fillMaxWidth()
-            )
+        // Feedback: new records store JSON — show encouragement + error cards.
+        // Old records store plain markdown — render via MarkdownText as before.
+        record.feedback?.takeIf { it.isNotBlank() }?.let { raw ->
+            val parsed = EvaluationResult.fromStorageString(raw)
+            if (parsed != null) {
+                Text(
+                    text  = parsed.encouragement,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                parsed.errors.forEach { error ->
+                    GrammarErrorCard(userAnswer = record.userAnswer, error = error)
+                }
+            } else {
+                MarkdownText(markdown = raw, modifier = Modifier.fillMaxWidth())
+            }
         }
     }
 }

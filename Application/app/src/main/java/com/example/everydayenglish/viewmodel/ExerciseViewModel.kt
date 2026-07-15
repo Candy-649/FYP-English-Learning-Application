@@ -13,6 +13,7 @@ import com.example.everydayenglish.data.Repository.UserProfileRepository
 import com.example.everydayenglish.data.entity.DailyCompletion
 import com.example.everydayenglish.data.entity.ExerciseRecord
 import com.example.everydayenglish.data.entity.ExerciseWithReferenceAnswers
+import com.example.everydayenglish.data.entity.GrammarError
 import com.example.everydayenglish.data.entity.QuestionAttempt
 import com.example.everydayenglish.data.entity.ReferenceAnswer
 import com.example.everydayenglish.data.entity.UserProfile
@@ -276,7 +277,7 @@ class ExerciseViewModel(
                     feedbackState = FeedbackState(
                         isCorrect              = null,
                         matchedReferenceAnswer = matchedAnswer,
-                        feedback               = null,
+                        encouragement          = null,
                         semanticScore          = null,
                         grammar                = grammarResult.summary,
                         isEvaluating           = true
@@ -296,7 +297,8 @@ class ExerciseViewModel(
                     userAnswer       = userAnswer,
                     referenceAnswers = referenceTexts,
                     grammarSummary   = grammarResult.summary,
-                    semanticScore    = semanticResult?.score
+                    semanticScore    = semanticResult?.score,
+                    tenseCategory    = matchedAnswer?.tense
                 )
             } catch (e: Exception) {
                 android.util.Log.e("DS_DEBUG", "DeepSeek failed: ${e.message}", e)
@@ -313,11 +315,10 @@ class ExerciseViewModel(
                 return@launch
             }
 
-
             recordRepository.updateEvaluation(
                 recordId  = recordId,
                 score     = semanticResult?.score ?: 0.0,
-                feedback  = evalResult?.feedback ?: "",
+                feedback  = evalResult?.toStorageString() ?: "",
                 isCorrect = evalResult?.isCorrect ?: semanticResult?.isCorrect ?: false
             )
 
@@ -326,7 +327,8 @@ class ExerciseViewModel(
                     feedbackState = it.feedbackState?.copy(
                         isCorrect         = evalResult?.isCorrect ?: semanticResult?.isCorrect ?: false,
                         semanticScore     = semanticResult?.score,
-                        feedback          = evalResult?.feedback,
+                        encouragement     = evalResult?.encouragement,
+                        errors            = evalResult?.errors ?: emptyList(),
                         isFeedbackLoading = false,
                         isEvaluating      = false
                     )
@@ -335,6 +337,7 @@ class ExerciseViewModel(
             viewModelScope.launch { retryPendingEvaluations() }
         }
     }
+
     private suspend fun retryPendingEvaluations() {
         val pending = recordRepository.getPendingRecords()
         if (pending.isEmpty()) return
@@ -351,7 +354,8 @@ class ExerciseViewModel(
                         userAnswer       = record.userAnswer,
                         referenceAnswers = referenceTexts,
                         grammarSummary   = record.grammar ?: "",
-                        semanticScore    = semanticResult.score
+                        semanticScore    = semanticResult.score,
+                        tenseCategory    = exercise.answers.firstOrNull()?.tense
                     )
                 } catch (e: Exception) { null }
 
@@ -359,7 +363,7 @@ class ExerciseViewModel(
                     recordRepository.updateEvaluation(
                         recordId  = record.recordId,
                         score     = semanticResult.score,
-                        feedback  = evalResult.feedback,
+                        feedback  = evalResult.toStorageString(),
                         isCorrect = evalResult.isCorrect
                     )
                 }
@@ -574,10 +578,13 @@ data class ExerciseUiState(
 data class FeedbackState(
     val isCorrect              : Boolean?,
     val matchedReferenceAnswer : ReferenceAnswer? = null,
-    val feedback               : String?,
+    /** Short encouraging sentence from DeepSeek. */
+    val encouragement          : String? = null,
+    /** Structured grammar errors for UI rendering. Empty when correct. */
+    val errors                 : List<GrammarError> = emptyList(),
     val semanticScore          : Double?,
     val grammar                : String?,
     val isEvaluating           : Boolean = false,
     val evaluationOffline      : Boolean = false,
-    val isFeedbackLoading : Boolean = false
+    val isFeedbackLoading      : Boolean = false
 )

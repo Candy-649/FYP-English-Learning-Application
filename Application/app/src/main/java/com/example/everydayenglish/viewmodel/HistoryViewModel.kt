@@ -6,6 +6,7 @@ import com.example.everydayenglish.data.Repository.AppPreferencesRepository
 import com.example.everydayenglish.data.Repository.ExerciseRepository
 import com.example.everydayenglish.data.Repository.RecordRepository
 import com.example.everydayenglish.data.entity.ExerciseRecord
+import com.example.everydayenglish.data.entity.GrammarError
 import com.example.everydayenglish.domain.CorrectAnswerRewardApplier
 import com.example.everydayenglish.grammarChecker.GrammarChecker
 import com.example.everydayenglish.onlineEvaluation.FeedbackGenerator
@@ -47,11 +48,14 @@ enum class HistoryFilter {
 
 /** 重做一题时，提交答案后的评估反馈状态。结构跟 ExerciseViewModel.FeedbackState 类似，但只服务于单题重做。 */
 data class RedoFeedbackState(
-    val isEvaluating: Boolean = true,
-    val isCorrect: Boolean? = null,
-    val feedback: String? = null,
-    val grammar: String? = null,
-    val evaluationOffline: Boolean = false
+    val isEvaluating      : Boolean = true,
+    val isCorrect         : Boolean? = null,
+    /** Short encouraging sentence from DeepSeek. */
+    val encouragement     : String? = null,
+    /** Structured grammar errors for UI rendering. Empty when correct. */
+    val errors            : List<GrammarError> = emptyList(),
+    val grammar           : String? = null,
+    val evaluationOffline : Boolean = false
 )
 
 data class HistoryUiState(
@@ -172,7 +176,8 @@ class HistoryViewModel(
                     userAnswer       = userAnswer,
                     referenceAnswers = referenceTexts,
                     grammarSummary   = grammarResult.summary,
-                    semanticScore    = semanticResult?.score
+                    semanticScore    = semanticResult?.score,
+                    tenseCategory    = tense
                 )
             } catch (e: Exception) {
                 null
@@ -194,16 +199,17 @@ class HistoryViewModel(
             recordRepository.updateEvaluation(
                 recordId  = recordId,
                 score     = semanticResult?.score ?: 0.0,
-                feedback  = evalResult?.feedback ?: "",
+                feedback  = evalResult?.toStorageString() ?: "",
                 isCorrect = isCorrect
             )
 
             _uiState.update {
                 it.copy(redoFeedback = RedoFeedbackState(
-                    isEvaluating = false,
-                    isCorrect    = isCorrect,
-                    feedback     = evalResult?.feedback,
-                    grammar      = grammarResult.summary
+                    isEvaluating  = false,
+                    isCorrect     = isCorrect,
+                    encouragement = evalResult?.encouragement,
+                    errors        = evalResult?.errors ?: emptyList(),
+                    grammar       = grammarResult.summary
                 ))
             }
 
