@@ -19,6 +19,7 @@ import com.example.everydayenglish.data.entity.ReferenceAnswer
 import com.example.everydayenglish.data.entity.UserProfile
 import com.example.everydayenglish.domain.CorrectAnswerRewardApplier
 import com.example.everydayenglish.grammarChecker.GrammarChecker
+import com.example.everydayenglish.onlineEvaluation.ConversationTurn
 import com.example.everydayenglish.onlineEvaluation.FeedbackGenerator
 import com.example.everydayenglish.onlineEvaluation.SemanticChecker
 import com.example.everydayenglish.onlineEvaluation.SemanticResult
@@ -173,7 +174,8 @@ class ExerciseViewModel(
                 errorMessage     = null,
                 currentExercise  = batch.first(),
                 selectionSteps   = steps,
-                sessionMode      = SessionMode.DAILY
+                sessionMode      = SessionMode.DAILY,
+                conversationHistory = emptyList()
             )
         }
         refreshArmStats()
@@ -234,7 +236,8 @@ class ExerciseViewModel(
                 errorMessage     = null,
                 currentExercise  = batch.first(),
                 selectionSteps   = emptyList(),
-                sessionMode      = SessionMode.MISTAKE_PRACTICE
+                sessionMode      = SessionMode.MISTAKE_PRACTICE,
+                conversationHistory = emptyList()
             )
         }
     }
@@ -298,7 +301,8 @@ class ExerciseViewModel(
                     referenceAnswers = referenceTexts,
                     grammarSummary   = grammarResult.summary,
                     semanticScore    = semanticResult?.score,
-                    tenseCategory    = matchedAnswer?.tense
+                    tenseCategory    = matchedAnswer?.tense,
+                    conversationHistory = state.conversationHistory
                 )
             } catch (e: Exception) {
                 android.util.Log.e("DS_DEBUG", "DeepSeek failed: ${e.message}", e)
@@ -331,7 +335,19 @@ class ExerciseViewModel(
                         errors            = evalResult?.errors ?: emptyList(),
                         isFeedbackLoading = false,
                         isEvaluating      = false
-                    )
+                    ),
+                    conversationHistory = if (evalResult != null) {
+                        it.conversationHistory + ConversationTurn(
+                            userAnswer       = userAnswer,
+                            referenceAnswers = referenceTexts,
+                            grammarSummary   = grammarResult.summary,
+                            semanticScore    = semanticResult?.score,
+                            tenseCategory    = matchedAnswer?.tense,
+                            assistantJson    = evalResult.toStorageString()
+                        )
+                    } else {
+                        it.conversationHistory
+                    }
                 )
             }
             viewModelScope.launch { retryPendingEvaluations() }
@@ -444,7 +460,8 @@ class ExerciseViewModel(
                         correctCount    = newCorrect,
                         feedbackState   = null,
                         isSessionDone   = true,
-                        currentExercise = null
+                        currentExercise = null,
+                        conversationHistory = emptyList()
                     )
                 }
             } else {
@@ -481,7 +498,8 @@ class ExerciseViewModel(
                     it.copy(
                         feedbackState = null,
                         isSessionDone = true,
-                        currentExercise = null
+                        currentExercise = null,
+                        conversationHistory = emptyList()
                     )
                 }
             } else {
@@ -490,7 +508,8 @@ class ExerciseViewModel(
                         currentIndex    = nextIndex,
                         currentExercise = it.exerciseQueue[nextIndex],
                         feedbackState   = null,
-                        userAnswer      = ""
+                        userAnswer      = "",
+                        conversationHistory = emptyList()
                     )
                 }
             }
@@ -572,7 +591,9 @@ data class ExerciseUiState(
     val selectionSteps: List<SelectionStepLog> = emptyList(),
     val showDebugPanel: Boolean = false,
     val currentArmStats: List<ArmDebugInfo> = emptyList(),
-    val sessionMode: SessionMode = SessionMode.DAILY
+    val sessionMode: SessionMode = SessionMode.DAILY,
+    /** DeepSeek 多轮上下文，只服务于「同一题多次重试」，换题即清空，不持久化 */
+    val conversationHistory: List<ConversationTurn> = emptyList()
 )
 
 data class FeedbackState(

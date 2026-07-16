@@ -6,9 +6,11 @@ import com.example.everydayenglish.data.Repository.AppPreferencesRepository
 import com.example.everydayenglish.data.Repository.ExerciseRepository
 import com.example.everydayenglish.data.Repository.RecordRepository
 import com.example.everydayenglish.data.entity.ExerciseRecord
+import com.example.everydayenglish.data.entity.EvaluationResult
 import com.example.everydayenglish.data.entity.GrammarError
 import com.example.everydayenglish.domain.CorrectAnswerRewardApplier
 import com.example.everydayenglish.grammarChecker.GrammarChecker
+import com.example.everydayenglish.onlineEvaluation.ConversationTurn
 import com.example.everydayenglish.onlineEvaluation.FeedbackGenerator
 import com.example.everydayenglish.onlineEvaluation.SemanticChecker
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -68,7 +70,10 @@ data class HistoryUiState(
     // ── 重做放弃的题 ──────────────────────────────────────
     val redoPromptId    : Int?              = null,  // 当前打开重做面板的题，null = 没有
     val redoAnswer      : String            = "",
-    val redoFeedback    : RedoFeedbackState? = null
+    val redoFeedback    : RedoFeedbackState? = null,
+    /** 本次重做 session 的 DeepSeek 多轮上下文：打开面板时用历史 records 重建 seed，
+     *  面板内继续重试则往后累积；关闭面板即清空，不持久化 */
+    val conversationHistory: List<ConversationTurn> = emptyList()
 ) {
     /** 根据当前筛选模式展示的列表 */
     val displayedItems: List<HistoryItem>
@@ -115,17 +120,58 @@ class HistoryViewModel(
     fun openRedo(promptId: Int) {
         _uiState.update {
             it.copy(
-                expandedPromptId = promptId,
-                redoPromptId     = promptId,
-                redoAnswer       = "",
-                redoFeedback     = null
+                expandedPromptId    = promptId,
+                redoPromptId        = promptId,
+                redoAnswer          = "",
+                redoFeedback        = null,
+                conversationHistory = emptyList()
             )
+        }
+
+        // 重建历史上下文是异步的（要查 exercise），先同步开面板保证 UI 不卡顿，
+        // 拿到结果后再回填；如果用户这期间已经关掉/切到别的题就丢弃这次结果。
+        viewModelScope.launch {
+            val item = _uiState.value.items.firstOrNull { it.promptId == promptId } ?: return@launch
+            val exercise = exerciseRepository.getExercisesWithReferenceAnswersById(promptId)
+            val referenceTexts = exercise.answers.map { it.reference }
+            val tense = exercise.answers.firstOrNull()?.tense
+
+            // 放弃题之前的每次尝试都重建成一轮 user/assistant，让 AI 知道自己之前判过什么；
+            // 解析不出来的旧格式记录（结构化反馈上线前的纯文本）直接跳过，不污染上下文；
+            // 只取最近 5 次，避免错太多次的题把 token 堆爆（item.records 已按时间升序排好，
+            // takeLast 保留最近的，且顺序仍是从旧到新，符合真实对话时间线）
+            val seedHistory = item.records
+                .filter { !it.evaluationPending }
+                .mapNotNull { record ->
+                    val evalResult = record.feedback
+                        ?.let { EvaluationResult.fromStorageString(it) }
+                        ?: return@mapNotNull null
+                    ConversationTurn(
+                        userAnswer       = record.userAnswer,
+                        referenceAnswers = referenceTexts,
+                        grammarSummary   = record.grammar,
+                        semanticScore    = record.semanticScore,
+                        tenseCategory    = tense,
+                        assistantJson    = evalResult.toStorageString()
+                    )
+                }
+                .takeLast(5)
+
+            _uiState.update { current ->
+                if (current.redoPromptId == promptId) current.copy(conversationHistory = seedHistory)
+                else current
+            }
         }
     }
 
     fun closeRedo() {
         _uiState.update {
-            it.copy(redoPromptId = null, redoAnswer = "", redoFeedback = null)
+            it.copy(
+                redoPromptId        = null,
+                redoAnswer           = "",
+                redoFeedback         = null,
+                conversationHistory  = emptyList()
+            )
         }
     }
 
@@ -173,11 +219,12 @@ class HistoryViewModel(
             }
             val evalResult = try {
                 feedbackGenerator.generate(
-                    userAnswer       = userAnswer,
-                    referenceAnswers = referenceTexts,
-                    grammarSummary   = grammarResult.summary,
-                    semanticScore    = semanticResult?.score,
-                    tenseCategory    = tense
+                    userAnswer          = userAnswer,
+                    referenceAnswers    = referenceTexts,
+                    grammarSummary      = grammarResult.summary,
+                    semanticScore       = semanticResult?.score,
+                    tenseCategory       = tense,
+                    conversationHistory = _uiState.value.conversationHistory
                 )
             } catch (e: Exception) {
                 null
@@ -204,13 +251,27 @@ class HistoryViewModel(
             )
 
             _uiState.update {
-                it.copy(redoFeedback = RedoFeedbackState(
-                    isEvaluating  = false,
-                    isCorrect     = isCorrect,
-                    encouragement = evalResult?.encouragement,
-                    errors        = evalResult?.errors ?: emptyList(),
-                    grammar       = grammarResult.summary
-                ))
+                it.copy(
+                    redoFeedback = RedoFeedbackState(
+                        isEvaluating  = false,
+                        isCorrect     = isCorrect,
+                        encouragement = evalResult?.encouragement,
+                        errors        = evalResult?.errors ?: emptyList(),
+                        grammar       = grammarResult.summary
+                    ),
+                    conversationHistory = if (evalResult != null) {
+                        it.conversationHistory + ConversationTurn(
+                            userAnswer       = userAnswer,
+                            referenceAnswers = referenceTexts,
+                            grammarSummary   = grammarResult.summary,
+                            semanticScore    = semanticResult?.score,
+                            tenseCategory    = tense,
+                            assistantJson    = evalResult.toStorageString()
+                        )
+                    } else {
+                        it.conversationHistory
+                    }
+                )
             }
 
             // 答对了：跟正常做对一题完全一样的奖励（老虎机、todayProgress、todayCorrectCount……）
